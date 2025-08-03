@@ -176,7 +176,32 @@ class AudioManager {
       
 
       if (result.success && result.text) {
-        let text = AudioManager.cleanTranscription(result.text);
+        const rawText = result.text;
+        
+        // Apply reasoning model if enabled AND agent is referenced
+        const useReasoning =
+          localStorage.getItem("useReasoningModel") === "true";
+
+        if (useReasoning) {
+          // Check if agent name is present in the text
+          const { getAgentName } = await import("../utils/agentName.ts");
+          const agentName = getAgentName();
+          const hasAgentReference = agentName && 
+            (rawText.toLowerCase().includes(`hey ${agentName.toLowerCase()}`) ||
+             rawText.toLowerCase().includes(agentName.toLowerCase()));
+          
+          if (hasAgentReference) {
+            const reasonedText = await this.processWithReasoningModel(rawText);
+            return {
+              success: true,
+              text: reasonedText,
+              source: "local-reasoned",
+            };
+          }
+        }
+        
+        // No agent detected or useReasoning disabled → local cleaning only
+        let text = AudioManager.cleanTranscription(rawText);
         if (text) {
           return { success: true, text, source: "local" };
         } else {
@@ -409,21 +434,31 @@ class AudioManager {
       const rawText = AudioManager.cleanTranscriptionForAPI(result.text);
 
       if (rawText) {
-        // Apply reasoning model if enabled
+        // Apply reasoning model if enabled AND agent is referenced
         const useReasoning =
           localStorage.getItem("useReasoningModel") === "true";
 
         if (useReasoning) {
-          const reasonedText = await this.processWithReasoningModel(rawText);
-          return {
-            success: true,
-            text: reasonedText,
-            source: "openai-reasoned",
-          };
-        } else {
-          const finalText = AudioManager.cleanTranscription(rawText);
-          return { success: true, text: finalText, source: "openai" };
+          // Check if agent name is present in the text
+          const { getAgentName } = await import("../utils/agentName.ts");
+          const agentName = getAgentName();
+          const hasAgentReference = agentName && 
+            (rawText.toLowerCase().includes(`hey ${agentName.toLowerCase()}`) ||
+             rawText.toLowerCase().includes(agentName.toLowerCase()));
+          
+          if (hasAgentReference) {
+            const reasonedText = await this.processWithReasoningModel(rawText);
+            return {
+              success: true,
+              text: reasonedText,
+              source: "openai-reasoned",
+            };
+          }
         }
+        
+        // No agent detected or useReasoning disabled → local cleaning only
+        const finalText = AudioManager.cleanTranscription(rawText);
+        return { success: true, text: finalText, source: "openai" };
       } else {
         throw new Error("No text transcribed");
       }

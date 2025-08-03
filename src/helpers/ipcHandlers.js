@@ -32,7 +32,11 @@ class IPCHandlers {
 
     ipcMain.handle("window-close", () => {
       if (this.windowManager.controlPanelWindow) {
-        this.windowManager.controlPanelWindow.close();
+        // Hide the window instead of closing it (minimize to tray)
+        this.windowManager.controlPanelWindow.hide();
+        
+        // Show notification on first minimize to tray
+        this.showFirstTimeMinimizeNotification();
       }
     });
 
@@ -79,6 +83,42 @@ class IPCHandlers {
       } catch (error) {
         console.error("Failed to save settings:", error);
         return { success: false, error: error.message };
+      }
+    });
+
+    // Auto-start handlers
+    ipcMain.handle("get-auto-start-status", async () => {
+      try {
+        const loginItemSettings = app.getLoginItemSettings();
+        return {
+          success: true,
+          enabled: loginItemSettings.openAtLogin
+        };
+      } catch (error) {
+        console.error("Failed to get auto-start status:", error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+    });
+
+    ipcMain.handle("set-auto-start", async (event, enabled) => {
+      try {
+        app.setLoginItemSettings({
+          openAtLogin: enabled,
+          openAsHidden: true // Start minimized to tray
+        });
+        return {
+          success: true,
+          enabled: enabled
+        };
+      } catch (error) {
+        console.error("Failed to set auto-start:", error);
+        return {
+          success: false,
+          error: error.message
+        };
       }
     });
 
@@ -284,6 +324,44 @@ class IPCHandlers {
         return { success: false, error: error.message };
       }
     });
+  }
+
+  showFirstTimeMinimizeNotification() {
+    // Check if this is the first time minimizing to tray
+    const { app } = require('electron');
+    const fs = require('fs');
+    const path = require('path');
+    
+    const userDataPath = app.getPath('userData');
+    const flagFile = path.join(userDataPath, '.tray-notification-shown');
+    
+    if (!fs.existsSync(flagFile)) {
+      // Show notification
+      const { Notification } = require('electron');
+      
+      if (Notification.isSupported()) {
+        const notification = new Notification({
+          title: 'OpenWispr',
+          body: 'L\'application a été minimisée dans la zone de notification. Cliquez sur l\'icône pour la restaurer ou faites un clic droit pour quitter.',
+          icon: this.getTrayIconPath()
+        });
+        
+        notification.show();
+      }
+      
+      // Create flag file to prevent showing again
+      try {
+        fs.writeFileSync(flagFile, 'shown');
+      } catch (error) {
+        console.error('Error creating tray notification flag file:', error);
+      }
+    }
+  }
+  
+  getTrayIconPath() {
+    const path = require('path');
+    const iconName = process.platform === "win32" ? "icon.ico" : "iconTemplate@3x.png";
+    return path.join(__dirname, "..", "..", "assets", iconName);
   }
 }
 

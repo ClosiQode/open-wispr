@@ -1,32 +1,74 @@
 const path = require("path");
+const { nativeImage, app } = require("electron");
+const fs = require("fs");
+
+// Function to get the application icon path
+function getAppIconPath() {
+  const iconName = process.platform === "win32" ? "icon.ico" : "icon.png";
+  
+  if (process.env.NODE_ENV === "development") {
+    const iconPath = path.join(__dirname, "..", "..", "assets", iconName);
+    if (fs.existsSync(iconPath)) {
+      return iconPath;
+    }
+  } else {
+    const possiblePaths = [
+      path.join(process.resourcesPath, "assets", iconName),
+      path.join(process.resourcesPath, "app.asar.unpacked", "assets", iconName),
+      path.join(__dirname, "..", "..", "assets", iconName),
+      path.join(process.resourcesPath, "app", "assets", iconName),
+      path.join(app.getPath("exe"), "..", "Resources", "assets", iconName),
+      path.join(app.getAppPath(), "assets", iconName),
+    ];
+    
+    for (const testPath of possiblePaths) {
+      try {
+        if (fs.existsSync(testPath)) {
+          return testPath;
+        }
+      } catch (e) {
+        // Continue to next path
+      }
+    }
+  }
+  
+  return null;
+}
 
 // Main dictation window configuration
 const MAIN_WINDOW_CONFIG = {
   width: 100,
   height: 100,
   type: 'panel',
+  icon: getAppIconPath(),
   webPreferences: {
     preload: path.join(__dirname, "..", "..", "preload.js"),
     nodeIntegration: false,
     contextIsolation: true,
     enableRemoteModule: false,
     sandbox: true,
+    titleBarOverlay: false,
   },
   frame: false,
+  titleBarStyle: 'hidden',
+  title: '',
   alwaysOnTop: true,
   resizable: false,
   transparent: true,
   show: true,
-  skipTaskbar: false,
+  skipTaskbar: true,
   focusable: true,
   visibleOnAllWorkspaces: true,
-  hiddenInMissionControl: false,
+  hiddenInMissionControl: true,
+  minimizable: false,
+  maximizable: false,
 };
 
 // Control panel window configuration
 const CONTROL_PANEL_CONFIG = {
   width: 1200,
   height: 800,
+  icon: getAppIconPath(),
   webPreferences: {
     preload: path.join(__dirname, "..", "..", "preload.js"),
     nodeIntegration: false,
@@ -66,7 +108,11 @@ class WindowPositionUtil {
       0,
       display.bounds.x + display.workArea.width - width - 20
     );
-    const y = Math.max(0, display.bounds.y + display.workArea.height);
+    // Position the window at the bottom right, but visible (subtract window height + margin)
+    const y = Math.max(
+      0,
+      display.bounds.y + display.workArea.height - height - 20
+    );
     return { x, y, width, height };
   }
 

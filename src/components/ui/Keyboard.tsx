@@ -94,7 +94,6 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
           isSelected={selectedKey === 'Backspace'}
           onClick={() => handleKeyClick('Backspace')}
           width="w-20"
-          disabled
         />
       </div>
 
@@ -105,7 +104,6 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
           isSelected={selectedKey === 'Tab'}
           onClick={() => handleKeyClick('Tab')}
           width="w-16"
-          disabled
         />
         {qwertyRow.map((key) => (
           <Key
@@ -124,7 +122,6 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
           isSelected={selectedKey === 'CapsLock'}
           onClick={() => handleKeyClick('CapsLock')}
           width="w-18"
-          disabled
         />
         {asdfRow.map((key) => (
           <Key
@@ -139,7 +136,6 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
           isSelected={selectedKey === 'Enter'}
           onClick={() => handleKeyClick('Enter')}
           width="w-20"
-          disabled
         />
       </div>
 
@@ -150,7 +146,6 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
           isSelected={selectedKey === 'Shift'}
           onClick={() => handleKeyClick('Shift')}
           width="w-24"
-          disabled
         />
         {zxcvRow.map((key) => (
           <Key
@@ -165,7 +160,6 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
           isSelected={false}
           onClick={() => handleKeyClick('Shift')}
           width="w-24"
-          disabled
         />
       </div>
 
@@ -176,14 +170,12 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
           isSelected={selectedKey === 'Ctrl'}
           onClick={() => handleKeyClick('Ctrl')}
           width="w-16"
-          disabled
         />
         <Key
           keyValue="Alt"
           isSelected={selectedKey === 'Alt'}
           onClick={() => handleKeyClick('Alt')}
           width="w-16"
-          disabled
         />
         <Key
           keyValue="Space"
@@ -196,14 +188,12 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
           isSelected={false}
           onClick={() => handleKeyClick('Alt')}
           width="w-16"
-          disabled
         />
         <Key
           keyValue="Ctrl"
           isSelected={false}
           onClick={() => handleKeyClick('Ctrl')}
           width="w-16"
-          disabled
         />
       </div>
 
@@ -211,7 +201,7 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
       {selectedKey && (
         <div className="mt-6 text-center">
           <div className="inline-flex items-center px-4 py-2 bg-indigo-100 border-2 border-indigo-300 rounded-lg">
-            <span className="text-sm text-indigo-700 mr-2">Selected:</span>
+            <span className="text-sm text-indigo-700 mr-2">Sélectionnée :</span>
             <kbd className="px-3 py-1 bg-white border border-indigo-200 rounded font-mono text-lg font-semibold text-indigo-900">
               {selectedKey}
             </kbd>

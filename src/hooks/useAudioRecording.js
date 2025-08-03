@@ -67,7 +67,9 @@ export const useAudioRecording = (toast) => {
       }
     };
 
-    window.electronAPI.onToggleDictation(handleToggle);
+    if (window.electronAPI && window.electronAPI.onToggleDictation) {
+      window.electronAPI.onToggleDictation(handleToggle);
+    }
 
     // Set up no-audio-detected listener
     const handleNoAudioDetected = () => {

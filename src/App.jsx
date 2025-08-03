@@ -114,10 +114,10 @@ export default function App() {
     } catch (err) {
       console.error("Recording error:", err);
       toast({
-        title: "Recording Error",
-        description: "Failed to access microphone: " + err.message,
-        variant: "destructive",
-      });
+          title: "Erreur d'enregistrement",
+          description: "Impossible d'accéder au microphone : " + err.message,
+          variant: "destructive",
+        });
     }
   };
 
@@ -134,9 +134,9 @@ export default function App() {
       await window.electronAPI.pasteText(text);
     } catch (err) {
       toast({
-        title: "Paste Error",
+        title: "Erreur de collage",
         description:
-          "Failed to paste text. Please check accessibility permissions.",
+          "Impossible de coller le texte. Veuillez vérifier les permissions d'accessibilité.",
         variant: "destructive",
       });
     }
@@ -188,8 +188,8 @@ export default function App() {
     } catch (err) {
       console.error(`🎧 [App] ❌ Transcription error:`, err);
       toast({
-        title: "Transcription Error",
-        description: "Transcription failed: " + err.message,
+        title: "Erreur de transcription",
+        description: "La transcription a échoué : " + err.message,
         variant: "destructive",
       });
     } finally {
@@ -212,7 +212,9 @@ export default function App() {
         recording = false;
       }
     };
-    window.electronAPI.onToggleDictation(handleToggle);
+    if (window.electronAPI && window.electronAPI.onToggleDictation) {
+      window.electronAPI.onToggleDictation(handleToggle);
+    }
     return () => {
       // No need to remove listener, as it's handled in preload
     };
@@ -257,28 +259,28 @@ export default function App() {
       case "idle":
         return {
           className: `${baseClasses} bg-black/50 cursor-pointer`,
-          tooltip: `Press [${hotkey}] to speak`,
+          tooltip: `Appuyez sur [${hotkey}] pour parler`,
         };
       case "hover":
         return {
           className: `${baseClasses} bg-black/50 cursor-pointer`,
-          tooltip: `Press [${hotkey}] to speak`,
+          tooltip: `Appuyez sur [${hotkey}] pour parler`,
         };
       case "recording":
         return {
-          className: `${baseClasses} bg-blue-600 cursor-pointer`,
-          tooltip: "Recording...",
+          className: `${baseClasses} bg-red-600 cursor-pointer`,
+          tooltip: "Enregistrement...",
         };
       case "processing":
         return {
           className: `${baseClasses} bg-purple-600 cursor-not-allowed`,
-          tooltip: "Processing...",
+          tooltip: "Traitement...",
         };
       default:
         return {
           className: `${baseClasses} bg-black/50 cursor-pointer`,
           style: { transform: "scale(0.8)" },
-          tooltip: "Click to speak",
+          tooltip: "Cliquez pour parler",
         };
     }
   };

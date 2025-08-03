@@ -59,14 +59,14 @@ export default function SupportDropdown({ className }: SupportDropdownProps) {
           className="cursor-pointer hover:bg-gray-50 focus:bg-gray-50"
         >
           <Mail className="mr-2 h-4 w-4" />
-          Contact Support
+          Contacter le support
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={handleSubmitBug}
           className="cursor-pointer hover:bg-gray-50 focus:bg-gray-50"
         >
           <Bug className="mr-2 h-4 w-4" />
-          Submit Bug
+          Signaler un bug
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

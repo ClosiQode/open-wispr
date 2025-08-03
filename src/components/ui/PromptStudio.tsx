@@ -57,8 +57,8 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
     
     localStorage.setItem("customPrompts", JSON.stringify(customPrompts));
     showAlertDialog({
-      title: "Prompts Saved!",
-      description: "Your custom prompts have been saved and will be used for all future AI processing."
+      title: "Prompts sauvegardés !",
+      description: "Vos prompts personnalisés ont été sauvegardés et seront utilisés pour tous les futurs traitements IA."
     });
   };
 
@@ -67,8 +67,8 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
     setEditedRegularPrompt(DEFAULT_PROMPTS.regular);
     localStorage.removeItem("customPrompts");
     showAlertDialog({
-      title: "Reset Complete",
-      description: "Prompts have been reset to default values."
+      title: "Réinitialisation terminée",
+      description: "Les prompts ont été réinitialisés aux valeurs par défaut."
     });
   };
 
@@ -122,7 +122,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
       
     } catch (error) {
       console.error("Test failed:", error);
-      setTestResult(`❌ Test failed: ${error.message}`);
+      setTestResult(`❌ Test échoué : ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -131,8 +131,8 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
   const copyPrompt = (prompt: string) => {
     navigator.clipboard.writeText(prompt);
     showAlertDialog({
-      title: "Copied!",
-      description: "Prompt copied to clipboard."
+      title: "Copié !",
+      description: "Prompt copié dans le presse-papiers."
     });
   };
 
@@ -141,10 +141,10 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
       <div>
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Eye className="w-5 h-5 text-blue-600" />
-          Current AI Prompts
+          Prompts IA actuels
         </h3>
         <p className="text-sm text-gray-600 mb-6">
-          These are the exact prompts currently being sent to your AI models. Understanding these helps you see how OpenWispr thinks!
+          Ce sont les prompts exacts actuellement envoyés à vos modèles IA. Les comprendre vous aide à voir comment OpenWispr réfléchit !
         </p>
       </div>
 
@@ -152,7 +152,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Sparkles className="w-4 h-4 text-purple-600" />
-            Agent Mode Prompt (when you say "Hey {agentName}")
+            Prompt du mode Agent (quand vous dites "Hey {agentName}")
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -166,7 +166,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
             className="mt-3"
           >
             <Copy className="w-4 h-4 mr-2" />
-            Copy Prompt
+            Copier le prompt
           </Button>
         </CardContent>
       </Card>
@@ -175,7 +175,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Zap className="w-4 h-4 text-green-600" />
-            Regular Mode Prompt (for automatic cleanup)
+            Prompt du mode Normal (pour le nettoyage automatique)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -189,7 +189,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
             className="mt-3"
           >
             <Copy className="w-4 h-4 mr-2" />
-            Copy Prompt
+            Copier le prompt
           </Button>
         </CardContent>
       </Card>
@@ -201,16 +201,16 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
       <div>
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Edit3 className="w-5 h-5 text-indigo-600" />
-          Customize Your AI Prompts
+          Personnaliser vos prompts IA
         </h3>
         <p className="text-sm text-gray-600 mb-6">
-          Edit these prompts to change how your AI behaves. Use <code>{"{{agentName}}"}</code> and <code>{"{{text}}"}</code> as placeholders.
+          Modifiez ces prompts pour changer le comportement de votre IA. Utilisez <code>{"{{agentName}}"}</code> et <code>{"{{text}}"}</code> comme espaces réservés.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Agent Mode Prompt</CardTitle>
+          <CardTitle className="text-base">Prompt du mode Agent</CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea
@@ -218,14 +218,14 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
             onChange={(e) => setEditedAgentPrompt(e.target.value)}
             rows={12}
             className="font-mono text-sm"
-            placeholder="Enter your custom agent prompt..."
+            placeholder="Entrez votre prompt d'agent personnalisé..."
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Regular Mode Prompt</CardTitle>
+          <CardTitle className="text-base">Prompt du mode Normal</CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea
@@ -233,7 +233,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
             onChange={(e) => setEditedRegularPrompt(e.target.value)}
             rows={12}
             className="font-mono text-sm"
-            placeholder="Enter your custom regular prompt..."
+            placeholder="Entrez votre prompt normal personnalisé..."
           />
         </CardContent>
       </Card>
@@ -241,11 +241,11 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
       <div className="flex gap-3">
         <Button onClick={savePrompts} className="flex-1">
           <Save className="w-4 h-4 mr-2" />
-          Save Custom Prompts
+          Sauvegarder les prompts personnalisés
         </Button>
         <Button onClick={resetToDefaults} variant="outline">
           <RotateCcw className="w-4 h-4 mr-2" />
-          Reset to Defaults
+          Réinitialiser par défaut
         </Button>
       </div>
     </div>
@@ -262,10 +262,10 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
         <div>
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <TestTube className="w-5 h-5 text-green-600" />
-            Test Your Prompts
+            Tester vos prompts
           </h3>
           <p className="text-sm text-gray-600 mb-6">
-            Test your custom prompts with the actual AI model to see real results.
+            Testez vos prompts personnalisés avec le modèle IA réel pour voir les résultats.
           </p>
         </div>
 
@@ -274,9 +274,9 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm text-amber-800 font-medium">AI Text Enhancement Disabled</p>
+                <p className="text-sm text-amber-800 font-medium">Amélioration de texte IA désactivée</p>
                 <p className="text-sm text-amber-700 mt-1">
-                  Enable AI text enhancement in the AI Models settings to test prompts.
+                  Activez l'amélioration de texte IA dans les paramètres des modèles IA pour tester les prompts.
                 </p>
               </div>
             </div>
@@ -287,26 +287,26 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
           <CardContent className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-gray-600">Current Model:</span>
+                <span className="text-gray-600">Modèle actuel :</span>
                 <span className="ml-2 font-medium">{reasoningModel}</span>
               </div>
               <div>
-                <span className="text-gray-600">Provider:</span>
+                <span className="text-gray-600">Fournisseur :</span>
                 <span className="ml-2 font-medium capitalize">{reasoningProvider}</span>
               </div>
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Test Input</label>
+              <label className="block text-sm font-medium mb-2">Texte de test</label>
               <Textarea
                 value={testText}
                 onChange={(e) => setTestText(e.target.value)}
                 rows={3}
-                placeholder="Enter text to test with your custom prompts..."
+                placeholder="Entrez du texte pour tester vos prompts personnalisés..."
               />
               <div className="flex items-center justify-between mt-2">
                 <p className="text-xs text-gray-500">
-                  Try including "{agentName}" in your text to test agent mode prompts
+                  Essayez d'inclure "{agentName}" dans votre texte pour tester les prompts du mode agent
                 </p>
                 {testText && (
                   <span className={`text-xs px-2 py-1 rounded-full ${
@@ -315,8 +315,8 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
                       : "bg-green-100 text-green-700"
                   }`}>
                     {testText.toLowerCase().includes(agentName.toLowerCase())
-                      ? "🤖 Agent Mode"
-                      : "✨ Regular Mode"}
+                      ? "🤖 Mode Agent"
+                      : "✨ Mode Normal"}
                   </span>
                 )}
               </div>
@@ -328,13 +328,13 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
               className="w-full"
             >
               <Play className="w-4 h-4 mr-2" />
-              {isLoading ? "Processing with AI..." : "Test Prompt with AI"}
+              {isLoading ? "Traitement avec l'IA..." : "Tester le prompt avec l'IA"}
             </Button>
 
             {testResult && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium">AI Response</label>
+                  <label className="text-sm font-medium">Réponse de l'IA</label>
                   <Button
                     onClick={() => copyPrompt(testResult)}
                     variant="ghost"
@@ -371,9 +371,9 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
       {/* Tab Navigation */}
       <div className="flex border-b border-gray-200 mb-6">
         {[
-          { id: "current", label: "Current Prompts", icon: Eye },
-          { id: "edit", label: "Customize", icon: Edit3 },
-          { id: "test", label: "Test", icon: TestTube }
+          { id: "current", label: "Prompts actuels", icon: Eye },
+          { id: "edit", label: "Personnaliser", icon: Edit3 },
+          { id: "test", label: "Tester", icon: TestTube }
         ].map((tab) => {
           const Icon = tab.icon;
           return (

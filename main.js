@@ -1,4 +1,6 @@
-const { app, globalShortcut, BrowserWindow } = require("electron");
+const { app, globalShortcut, BrowserWindow, nativeImage } = require("electron");
+const path = require("path");
+const fs = require("fs");
 
 // Add global error handling for uncaught exceptions
 process.on("uncaughtException", (error) => {
@@ -120,8 +122,33 @@ async function startApp() {
   updateManager.checkForUpdatesOnStartup();
 }
 
+// Function to set application icon
+function setApplicationIcon() {
+  const iconName = process.platform === "win32" ? "icon.ico" : "icon.png";
+  
+  if (process.env.NODE_ENV === "development") {
+    const iconPath = path.join(__dirname, "assets", iconName);
+    if (fs.existsSync(iconPath)) {
+      const icon = nativeImage.createFromPath(iconPath);
+      app.setAppUserModelId("com.herotools.openwispr");
+      if (process.platform === "win32") {
+        app.setUserTasks([]);
+      }
+      return;
+    }
+  }
+  
+  // Set app user model ID for Windows
+  if (process.platform === "win32") {
+    app.setAppUserModelId("com.herotools.openwispr");
+  }
+}
+
 // App event handlers
 app.whenReady().then(() => {
+  // Set application icon
+  setApplicationIcon();
+  
   // Only log debug status in development
   if (debugLogger.isEnabled() && process.env.NODE_ENV === 'development') {
     console.log(`Debug logging enabled: ${debugLogger.getLogPath()}`);
@@ -131,9 +158,12 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  // Don't quit the app when all windows are closed if tray is available
+  // Only quit on macOS if no tray is present
+  if (process.platform === "darwin" && !trayManager.tray) {
     app.quit();
   }
+  // On Windows/Linux, keep the app running in the tray
 });
 
 app.on("activate", () => {

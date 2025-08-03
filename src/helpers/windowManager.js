@@ -72,6 +72,12 @@ class WindowManager {
     this.mainWindow.on("show", () => {
       WindowPositionUtil.setupAlwaysOnTop(this.mainWindow);
     });
+
+    // Workaround for Electron bug on Windows: prevent title bar from appearing after taskbar interaction
+    if (process.platform === 'win32') {
+      this.mainWindow.on('blur', this.fixTitleBar.bind(this));
+      this.mainWindow.on('focus', this.fixTitleBar.bind(this));
+    }
   }
 
   async loadMainWindow() {
@@ -111,8 +117,21 @@ class WindowManager {
     return await this.dragManager.startWindowDrag();
   }
 
+  fixTitleBar() {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
+    const [w, h] = this.mainWindow.getSize();
+    this.mainWindow.setResizable(true);
+    this.mainWindow.setSize(w, h + 1);
+    this.mainWindow.setSize(w, h);
+    this.mainWindow.setResizable(false);
+  }
+
   async stopWindowDrag() {
-    return await this.dragManager.stopWindowDrag();
+    const result = await this.dragManager.stopWindowDrag();
+    if (process.platform === 'win32') {
+      this.fixTitleBar();
+    }
+    return result;
   }
 
   async createControlPanelWindow() {

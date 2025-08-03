@@ -89,15 +89,15 @@ export default function ControlPanel() {
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: "Copied!",
-        description: "Text copied to your clipboard",
+        title: "Copié !",
+        description: "Texte copié dans le presse-papiers",
         variant: "success",
         duration: 2000,
       });
     } catch (err) {
       toast({
-        title: "Copy Failed",
-        description: "Failed to copy text to clipboard",
+        title: "Échec de la copie",
+        description: "Impossible de copier le texte dans le presse-papiers",
         variant: "destructive",
       });
     }
@@ -105,21 +105,21 @@ export default function ControlPanel() {
 
   const clearHistory = async () => {
     showConfirmDialog({
-      title: "Clear History",
+      title: "Effacer l'historique",
       description:
-        "Are you certain you wish to clear all inscribed records? This action cannot be undone.",
+        "Êtes-vous certain de vouloir effacer tous les enregistrements ? Cette action ne peut pas être annulée.",
       onConfirm: async () => {
         try {
           const result = await window.electronAPI.clearTranscriptions();
           setHistory([]);
           showAlertDialog({
-            title: "History Cleared",
-            description: `Successfully cleared ${result.cleared} transcriptions from your chronicles.`,
+            title: "Historique effacé",
+            description: `${result.cleared} transcriptions ont été supprimées avec succès de vos archives.`,
           });
         } catch (error) {
           showAlertDialog({
-            title: "Error",
-            description: "Failed to clear history. Please try again.",
+            title: "Erreur",
+            description: "Impossible d'effacer l'historique. Veuillez réessayer.",
           });
         }
       },
@@ -129,9 +129,9 @@ export default function ControlPanel() {
 
   const deleteTranscription = async (id: number) => {
     showConfirmDialog({
-      title: "Delete Transcription",
+      title: "Supprimer la transcription",
       description:
-        "Are you certain you wish to remove this inscription from your records?",
+        "Êtes-vous certain de vouloir supprimer cette transcription de vos enregistrements ?",
       onConfirm: async () => {
         try {
           const result = await window.electronAPI.deleteTranscription(id);
@@ -140,15 +140,15 @@ export default function ControlPanel() {
             setHistory((prev) => prev.filter((item) => item.id !== id));
           } else {
             showAlertDialog({
-              title: "Delete Failed",
+              title: "Échec de la suppression",
               description:
-                "Failed to delete transcription. It may have already been removed.",
+                "Impossible de supprimer la transcription. Elle a peut-être déjà été supprimée.",
             });
           }
         } catch (error) {
           showAlertDialog({
-            title: "Delete Failed",
-            description: "Failed to delete transcription. Please try again.",
+            title: "Échec de la suppression",
+            description: "Impossible de supprimer la transcription. Veuillez réessayer.",
           });
         }
       },
@@ -212,7 +212,7 @@ export default function ControlPanel() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <FileText size={18} className="text-indigo-600" />
-                  Recent Transcriptions
+                  Transcriptions récentes
                 </CardTitle>
                 <div className="flex gap-2">
                   <Button onClick={refreshHistory} variant="ghost" size="icon">
@@ -237,7 +237,7 @@ export default function ControlPanel() {
                   <div className="w-8 h-8 mx-auto mb-3 bg-indigo-600 rounded-lg flex items-center justify-center">
                     <span className="text-white text-sm">📝</span>
                   </div>
-                  <p className="text-neutral-600">Loading transcriptions...</p>
+                  <p className="text-neutral-600">Chargement des transcriptions...</p>
                 </div>
               ) : history.length === 0 ? (
                 <div className="text-center py-12">
@@ -245,34 +245,33 @@ export default function ControlPanel() {
                     <Mic className="w-8 h-8 text-neutral-400" />
                   </div>
                   <h3 className="text-lg font-medium text-neutral-900 mb-2">
-                    No transcriptions yet
+                    Aucune transcription pour le moment
                   </h3>
                   <p className="text-neutral-600 mb-4 max-w-sm mx-auto">
-                    Press your hotkey to start recording and create your first
-                    transcription.
+                    Appuyez sur votre raccourci clavier pour commencer l'enregistrement et créer votre première transcription.
                   </p>
                   <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 max-w-md mx-auto">
                     <h4 className="font-medium text-neutral-800 mb-2">
-                      Quick Start:
+                      Démarrage rapide :
                     </h4>
                     <ol className="text-sm text-neutral-600 text-left space-y-1">
-                      <li>1. Click in any text field</li>
+                      <li>1. Cliquez dans n'importe quel champ de texte</li>
                       <li>
-                        2. Press{" "}
+                        2. Appuyez sur{" "}
                         <kbd className="bg-white px-2 py-1 rounded text-xs font-mono border border-neutral-300">
                           {hotkey}
                         </kbd>{" "}
-                        to start recording
+                        pour commencer l'enregistrement
                       </li>
-                      <li>3. Speak your text</li>
+                      <li>3. Dictez votre texte</li>
                       <li>
-                        4. Press{" "}
+                        4. Appuyez sur{" "}
                         <kbd className="bg-white px-2 py-1 rounded text-xs font-mono border border-neutral-300">
                           {hotkey}
                         </kbd>{" "}
-                        again to stop
+                        à nouveau pour arrêter
                       </li>
-                      <li>5. Your text will appear automatically!</li>
+                      <li>5. Votre texte apparaîtra automatiquement !</li>
                     </ol>
                   </div>
                 </div>

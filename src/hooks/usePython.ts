@@ -16,11 +16,11 @@ interface ShowAlertDialog {
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-  'Permission denied': 'Please run the application as administrator and try again.',
-  'access is denied': 'Please run the application as administrator and try again.',
-  'Network': 'Please check your internet connection and try again.',
-  'No supported package manager': 'Please install Python manually from python.org',
-  'not found in PATH': 'Python installed but not found in PATH. Please restart the application.',
+  'Permission denied': 'Veuillez exécuter l\'application en tant qu\'administrateur et réessayer.',
+  'access is denied': 'Veuillez exécuter l\'application en tant qu\'administrateur et réessayer.',
+  'Network': 'Veuillez vérifier votre connexion internet et réessayer.',
+  'No supported package manager': 'Veuillez installer Python manuellement depuis python.org',
+  'not found in PATH': 'Python installé mais non trouvé dans PATH. Veuillez redémarrer l\'application.',
 };
 
 function getPythonInstallErrorMessage(error: Error): string {
@@ -74,8 +74,8 @@ export function usePython(showAlertDialog: ShowAlertDialog) {
     
     if (!window.electronAPI) {
       showAlertDialog({
-        title: "Installation Error",
-        description: "Unable to communicate with the main process. Please restart the application.",
+        title: "Erreur d'installation",
+        description: "Impossible de communiquer avec le processus principal. Veuillez redémarrer l'application.",
       });
       return;
     }

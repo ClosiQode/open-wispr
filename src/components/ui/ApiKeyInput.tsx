@@ -50,7 +50,7 @@ export default function ApiKeyInput({
           onClick={() => pasteFromClipboardWithFallback(setApiKey)}
           className={buttonVariantClasses}
         >
-          Paste
+          Coller
         </Button>
       </div>
       <p className="text-xs text-neutral-600 mt-2">{helpText}</p>

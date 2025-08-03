@@ -20,7 +20,7 @@ class WhisperManager {
   getWhisperScriptPath() {
     // In production, the file is unpacked from ASAR
     if (process.env.NODE_ENV === "development") {
-      return path.join(__dirname, "..", "..", "whisper_bridge.py");
+      return path.join(__dirname, "..", "..", "..", "whisper_bridge.py");
     } else {
       // In production, use the unpacked path
       return path.join(

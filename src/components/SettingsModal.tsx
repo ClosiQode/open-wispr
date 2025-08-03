@@ -13,11 +13,11 @@ export default function SettingsModal({
   onOpenChange,
 }: SettingsModalProps) {
   const sidebarItems: SidebarItem<SettingsSectionType>[] = [
-    { id: "general", label: "General", icon: Settings },
-    { id: "transcription", label: "Transcription Mode", icon: Mic },
-    { id: "aiModels", label: "AI Models", icon: Brain },
-    { id: "agentConfig", label: "Agent Configuration", icon: User },
-    { id: "prompts", label: "AI Prompts", icon: Sparkles },
+    { id: "general", label: "Général", icon: Settings },
+    { id: "transcription", label: "Mode de transcription", icon: Mic },
+    { id: "aiModels", label: "Modèles IA", icon: Brain },
+    { id: "agentConfig", label: "Configuration de l'agent", icon: User },
+    { id: "prompts", label: "Invites IA", icon: Sparkles },
   ];
 
   const [activeSection, setActiveSection] =
@@ -27,7 +27,7 @@ export default function SettingsModal({
     <SidebarModal<SettingsSectionType>
       open={open}
       onOpenChange={onOpenChange}
-      title="Settings"
+      title="Paramètres"
       sidebarItems={sidebarItems}
       activeSection={activeSection}
       onSectionChange={setActiveSection}

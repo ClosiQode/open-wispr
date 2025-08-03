@@ -128,7 +128,7 @@ export default function LanguageSelector({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Search languages..."
+                placeholder="Rechercher des langues..."
                 className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
               />
               {searchQuery && (
@@ -144,7 +144,7 @@ export default function LanguageSelector({
           <div className="max-h-48 overflow-y-auto">
             {filteredLanguages.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500">
-                No languages found
+                Aucune langue trouvée
               </div>
             ) : (
               <div role="listbox">

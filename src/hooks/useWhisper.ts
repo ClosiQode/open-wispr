@@ -42,33 +42,33 @@ export const useWhisper = (
   const installWhisper = useCallback(async () => {
     try {
       setInstallingWhisper(true);
-      setInstallProgress("Starting Whisper installation...");
+      setInstallProgress("Démarrage de l'installation de Whisper...");
 
       const result: WhisperInstallResult =
         await window.electronAPI.installWhisper();
 
       if (result.success) {
         setWhisperInstalled(true);
-        setInstallProgress("Installation complete!");
+        setInstallProgress("Installation terminée !");
       } else {
         if (showAlertDialog) {
           showAlertDialog({
-            title: "❌ Whisper Installation Failed",
-            description: `Failed to install Whisper: ${result.message}`,
+            title: "❌ Échec de l'installation de Whisper",
+            description: `Échec de l'installation de Whisper : ${result.message}`,
           });
         } else {
-          alert(`❌ Failed to install Whisper: ${result.message}`);
+          alert(`❌ Échec de l'installation de Whisper : ${result.message}`);
         }
       }
     } catch (error) {
       console.error("Error installing Whisper:", error);
       if (showAlertDialog) {
         showAlertDialog({
-          title: "❌ Whisper Installation Failed",
-          description: `Failed to install Whisper: ${error}`,
+          title: "❌ Échec de l'installation de Whisper",
+          description: `Échec de l'installation de Whisper : ${error}`,
         });
       } else {
-        alert(`❌ Failed to install Whisper: ${error}`);
+        alert(`❌ Échec de l'installation de Whisper : ${error}`);
       }
     } finally {
       setInstallingWhisper(false);

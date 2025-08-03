@@ -104,6 +104,12 @@ export interface SaveSettings {
   hotkey: string;
 }
 
+export interface AutoStartResult {
+  success: boolean;
+  enabled?: boolean;
+  error?: string;
+}
+
 declare global {
   interface Window {
     electronAPI: {
@@ -177,6 +183,10 @@ declare global {
       installUpdate: () => Promise<UpdateResult>;
       getAppVersion: () => Promise<AppVersionResult>;
       getUpdateStatus: () => Promise<UpdateStatusResult>;
+      
+      // Auto-start functions
+      getAutoStartStatus: () => Promise<AutoStartResult>;
+      setAutoStart: (enabled: boolean) => Promise<AutoStartResult>;
 
       // Update event listeners
       onUpdateAvailable: (callback: (event: any, info: any) => void) => void;

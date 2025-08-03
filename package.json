@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "concurrently -k -r \"npm:dev:renderer\" \"npm:dev:main\"",
-    "dev:main": "NODE_ENV=development electron . --dev",
+    "dev:main": "set NODE_ENV=development && electron . --dev",
     "dev:renderer": "cd src && vite",
     "build": "cd src && vite build && cd .. && electron-builder",
     "postinstall": "electron-builder install-app-deps",

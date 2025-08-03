@@ -16,6 +16,7 @@ import { REASONING_PROVIDERS } from "../utils/languages";
 import LanguageSelector from "./ui/LanguageSelector";
 import PromptStudio from "./ui/PromptStudio";
 const InteractiveKeyboard = React.lazy(() => import("./ui/Keyboard"));
+const EnhancedKeyboard = React.lazy(() => import("./ui/EnhancedKeyboard"));
 
 export type SettingsSectionType =
   | "general"
@@ -54,6 +55,7 @@ export default function SettingsPage({
     openaiApiKey,
     anthropicApiKey,
     dictationKey,
+    startOnBoot,
     setUseLocalWhisper,
     setWhisperModel,
     setAllowOpenAIFallback,
@@ -66,9 +68,11 @@ export default function SettingsPage({
     setOpenaiApiKey,
     setAnthropicApiKey,
     setDictationKey,
+    setStartOnBoot,
     updateTranscriptionSettings,
     updateReasoningSettings,
     updateApiKeys,
+    updateGeneralSettings,
   } = useSettings();
 
   // Update state
@@ -91,6 +95,50 @@ export default function SettingsPage({
   const permissionsHook = usePermissions(showAlertDialog);
   const { pasteFromClipboardWithFallback } = useClipboard(showAlertDialog);
   const { agentName, setAgentName } = useAgentName();
+
+  // États pour le nouveau clavier amélioré
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [allowCombinations, setAllowCombinations] = useState(false);
+  const [keyboardLayout, setKeyboardLayout] = useState<'qwerty' | 'azerty'>('azerty');
+  
+  // État pour le démarrage automatique
+  const [autoStartLoading, setAutoStartLoading] = useState(false);
+
+  // Synchroniser selectedKeys avec dictationKey
+  useEffect(() => {
+    if (dictationKey) {
+      // Convertir la chaîne de dictationKey en tableau
+      const keys = dictationKey.includes('+') ? dictationKey.split('+') : [dictationKey];
+      setSelectedKeys(keys);
+      setAllowCombinations(keys.length > 1);
+    }
+  }, [dictationKey]);
+
+  // Mettre à jour dictationKey quand selectedKeys change
+  useEffect(() => {
+    if (selectedKeys.length > 0) {
+      const newDictationKey = selectedKeys.join('+');
+      if (newDictationKey !== dictationKey) {
+        setDictationKey(newDictationKey);
+      }
+    }
+  }, [selectedKeys, dictationKey, setDictationKey]);
+
+  // Synchroniser l'état du démarrage automatique au chargement
+  useEffect(() => {
+    const syncAutoStartStatus = async () => {
+      try {
+        const result = await window.electronAPI?.getAutoStartStatus();
+        if (result?.success && result.enabled !== undefined) {
+          setStartOnBoot(result.enabled);
+        }
+      } catch (error) {
+        console.error("Failed to sync auto-start status:", error);
+      }
+    };
+    
+    syncAutoStartStatus();
+  }, [setStartOnBoot]);
 
   // Defer heavy operations for better performance
   useEffect(() => {
@@ -171,10 +219,10 @@ export default function SettingsPage({
     });
 
     showAlertDialog({
-      title: "Reasoning Settings Saved",
-      description: `AI text enhancement ${
-        useReasoningModel ? "enabled" : "disabled"
-      } with ${
+      title: "Paramètres de raisonnement sauvegardés",
+      description: `Amélioration de texte IA ${
+        useReasoningModel ? "activée" : "désactivée"
+      } avec ${
         REASONING_PROVIDERS[
           reasoningProvider as keyof typeof REASONING_PROVIDERS
         ]?.name || reasoningProvider
@@ -200,9 +248,9 @@ export default function SettingsPage({
       try {
         await window.electronAPI?.createProductionEnvFile(openaiApiKey);
         showAlertDialog({
-          title: "API Key Saved",
-          description: `OpenAI API key saved successfully! Your credentials have been securely recorded for transcription services.${
-            allowLocalFallback ? " Local Whisper fallback is enabled." : ""
+          title: "Clé API sauvegardée",
+          description: `Clé API OpenAI sauvegardée avec succès ! Vos identifiants ont été enregistrés de manière sécurisée pour les services de transcription.${
+            allowLocalFallback ? " Le fallback Whisper local est activé." : ""
           }`,
         });
       } catch (envError) {
@@ -232,7 +280,7 @@ export default function SettingsPage({
   ]);
 
   const resetAccessibilityPermissions = () => {
-    const message = `🔄 RESET ACCESSIBILITY PERMISSIONS\n\nIf you've rebuilt or reinstalled OpenWispr and automatic inscription isn't functioning, you may have obsolete permissions from the previous version.\n\n📋 STEP-BY-STEP RESTORATION:\n\n1️⃣ Open System Settings (or System Preferences)\n   • macOS Ventura+: Apple Menu → System Settings\n   • Older macOS: Apple Menu → System Preferences\n\n2️⃣ Navigate to Privacy & Security → Accessibility\n\n3️⃣ Look for obsolete OpenWispr entries:\n   • Any entries named "OpenWispr"\n   • Any entries named "Electron"\n   • Any entries with unclear or generic names\n   • Entries pointing to old application locations\n\n4️⃣ Remove ALL obsolete entries:\n   • Select each old entry\n   • Click the minus (-) button\n   • Enter your password if prompted\n\n5️⃣ Add the current OpenWispr:\n   • Click the plus (+) button\n   • Navigate to and select the CURRENT OpenWispr app\n   • Ensure the checkbox is ENABLED\n\n6️⃣ Restart OpenWispr completely\n\n💡 This is very common during development when rebuilding applications!\n\nClick OK when you're ready to open System Settings.`;
+    const message = `🔄 RÉINITIALISER LES PERMISSIONS D'ACCESSIBILITÉ\n\nSi vous avez reconstruit ou réinstallé OpenWispr et que l'inscription automatique ne fonctionne pas, vous pourriez avoir des permissions obsolètes de la version précédente.\n\n📋 RESTAURATION ÉTAPE PAR ÉTAPE :\n\n1️⃣ Ouvrir les Réglages Système (ou Préférences Système)\n   • macOS Ventura+ : Menu Apple → Réglages Système\n   • macOS plus ancien : Menu Apple → Préférences Système\n\n2️⃣ Naviguer vers Confidentialité et sécurité → Accessibilité\n\n3️⃣ Rechercher les entrées OpenWispr obsolètes :\n   • Toute entrée nommée "OpenWispr"\n   • Toute entrée nommée "Electron"\n   • Toute entrée avec des noms peu clairs ou génériques\n   • Entrées pointant vers d'anciens emplacements d'application\n\n4️⃣ Supprimer TOUTES les entrées obsolètes :\n   • Sélectionner chaque ancienne entrée\n   • Cliquer sur le bouton moins (-)\n   • Entrer votre mot de passe si demandé\n\n5️⃣ Ajouter l'OpenWispr actuel :\n   • Cliquer sur le bouton plus (+)\n   • Naviguer et sélectionner l'application OpenWispr ACTUELLE\n   • S'assurer que la case est COCHÉE\n\n6️⃣ Redémarrer OpenWispr complètement\n\n💡 C'est très courant pendant le développement lors de la reconstruction d'applications !\n\nCliquez sur OK quand vous êtes prêt à ouvrir les Réglages Système.`;
 
     showConfirmDialog({
       title: "Reset Accessibility Permissions",
@@ -256,15 +304,41 @@ export default function SettingsPage({
     try {
       await window.electronAPI?.updateHotkey(dictationKey);
       showAlertDialog({
-        title: "Key Saved",
-        description: `Dictation key saved: ${dictationKey}`,
-      });
+          title: "Touche sauvegardée",
+          description: `Touche de dictée sauvegardée : ${dictationKey}`,
+        });
     } catch (error) {
       console.error("Failed to update hotkey:", error);
       showAlertDialog({
         title: "Error",
         description: `Failed to update hotkey: ${error.message}`,
       });
+    }
+  };
+
+  const handleAutoStartToggle = async (enabled: boolean) => {
+    setAutoStartLoading(true);
+    try {
+      const result = await window.electronAPI?.setAutoStart(enabled);
+      if (result?.success) {
+        setStartOnBoot(enabled);
+        showAlertDialog({
+          title: enabled ? "Démarrage automatique activé" : "Démarrage automatique désactivé",
+          description: enabled 
+            ? "OpenWispr se lancera automatiquement au démarrage de votre ordinateur."
+            : "OpenWispr ne se lancera plus automatiquement au démarrage.",
+        });
+      } else {
+        throw new Error(result?.error || "Échec de la configuration du démarrage automatique");
+      }
+    } catch (error: any) {
+      console.error("Failed to toggle auto-start:", error);
+      showAlertDialog({
+        title: "Erreur",
+        description: `Impossible de modifier le démarrage automatique : ${error.message}`,
+      });
+    } finally {
+      setAutoStartLoading(false);
     }
   };
 
@@ -277,34 +351,34 @@ export default function SettingsPage({
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  App Updates
+                  Mises à jour de l'application
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Keep OpenWispr up to date with the latest features and
-                  improvements.
+                  Maintenez OpenWispr à jour avec les dernières fonctionnalités et
+                  améliorations.
                 </p>
               </div>
               <div className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-neutral-800">
-                    Current Version
+                    Version actuelle
                   </p>
                   <p className="text-xs text-neutral-600">
-                    {currentVersion || "Loading..."}
+                    {currentVersion || "Chargement..."}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {updateStatus.isDevelopment ? (
                     <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
-                      Development Mode
+                      Mode développement
                     </span>
                   ) : updateStatus.updateAvailable ? (
                     <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                      Update Available
+                      Mise à jour disponible
                     </span>
                   ) : (
                     <span className="text-xs text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full">
-                      Up to Date
+                      À jour
                     </span>
                   )}
                 </div>
@@ -327,20 +401,20 @@ export default function SettingsPage({
                           updateAvailable: true,
                         }));
                         showAlertDialog({
-                          title: "Update Available",
-                          description: `Update available: v${result.version}`,
+                          title: "Mise à jour disponible",
+                          description: `Mise à jour disponible : v${result.version}`,
                         });
                       } else {
                         showAlertDialog({
-                          title: "No Updates",
+                          title: "Aucune mise à jour",
                           description:
-                            result?.message || "No updates available",
+                            result?.message || "Aucune mise à jour disponible",
                         });
                       }
                     } catch (error: any) {
                       showAlertDialog({
-                        title: "Update Check Failed",
-                        description: `Error checking for updates: ${error.message}`,
+                        title: "Échec de la vérification",
+                        description: `Erreur lors de la vérification des mises à jour : ${error.message}`,
                       });
                     } finally {
                       setCheckingForUpdates(false);
@@ -352,12 +426,12 @@ export default function SettingsPage({
                   {checkingForUpdates ? (
                     <>
                       <RefreshCw size={16} className="animate-spin mr-2" />
-                      Checking for Updates...
+                      Vérification des mises à jour...
                     </>
                   ) : (
                     <>
                       <RefreshCw size={16} className="mr-2" />
-                      Check for Updates
+                      Vérifier les mises à jour
                     </>
                   )}
                 </Button>
@@ -372,8 +446,8 @@ export default function SettingsPage({
                       } catch (error: any) {
                         setDownloadingUpdate(false);
                         showAlertDialog({
-                          title: "Download Failed",
-                          description: `Failed to download update: ${error.message}`,
+                          title: "Échec du téléchargement",
+                          description: `Échec du téléchargement de la mise à jour : ${error.message}`,
                         });
                       }
                     }}
@@ -383,12 +457,12 @@ export default function SettingsPage({
                     {downloadingUpdate ? (
                       <>
                         <Download size={16} className="animate-pulse mr-2" />
-                        Downloading... {Math.round(updateDownloadProgress)}%
+                        Téléchargement... {Math.round(updateDownloadProgress)}%
                       </>
                     ) : (
                       <>
                         <Download size={16} className="mr-2" />
-                        Download Update v{updateInfo.version}
+                        Télécharger la mise à jour v{updateInfo.version}
                       </>
                     )}
                   </Button>
@@ -398,15 +472,15 @@ export default function SettingsPage({
                   <Button
                     onClick={async () => {
                       showConfirmDialog({
-                        title: "Install Update",
-                        description: `Ready to install update v${updateInfo.version}. The app will restart to complete installation.`,
+                        title: "Installer la mise à jour",
+                        description: `Prêt à installer la mise à jour v${updateInfo.version}. L'application redémarrera pour terminer l'installation.`,
                         onConfirm: async () => {
                           try {
                             await window.electronAPI?.installUpdate();
                           } catch (error: any) {
                             showAlertDialog({
-                              title: "Install Failed",
-                              description: `Failed to install update: ${error.message}`,
+                              title: "Échec de l'installation",
+                              description: `Échec de l'installation de la mise à jour : ${error.message}`,
                             });
                           }
                         },
@@ -415,23 +489,23 @@ export default function SettingsPage({
                     className="w-full bg-blue-600 hover:bg-blue-700"
                   >
                     <span className="mr-2">🚀</span>
-                    Install Update & Restart
+                    Installer la mise à jour et redémarrer
                   </Button>
                 )}
 
                 {updateInfo.version && (
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 className="font-medium text-blue-900 mb-2">
-                      Update v{updateInfo.version}
+                      Mise à jour v{updateInfo.version}
                     </h4>
                     {updateInfo.releaseDate && (
                       <p className="text-sm text-blue-700 mb-2">
-                        Released: {new Date(updateInfo.releaseDate).toLocaleDateString()}
+                        Publié le : {new Date(updateInfo.releaseDate).toLocaleDateString()}
                       </p>
                     )}
                     {updateInfo.releaseNotes && (
                       <div className="text-sm text-blue-800">
-                        <p className="font-medium mb-1">What's New:</p>
+                        <p className="font-medium mb-1">Nouveautés :</p>
                         <div className="whitespace-pre-wrap">{updateInfo.releaseNotes}</div>
                       </div>
                     )}
@@ -440,54 +514,151 @@ export default function SettingsPage({
               </div>
             </div>
 
+            {/* Auto-start Section */}
+            <div className="border-t pt-8">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Démarrage automatique
+                </h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Configurez OpenWispr pour se lancer automatiquement au démarrage de votre ordinateur.
+                </p>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-neutral-800">
+                    Lancer au démarrage
+                  </p>
+                  <p className="text-xs text-neutral-600">
+                    {startOnBoot 
+                      ? "OpenWispr se lancera automatiquement au démarrage" 
+                      : "OpenWispr ne se lancera pas automatiquement"}
+                  </p>
+                </div>
+                <div className="flex items-center">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={startOnBoot}
+                      onChange={(e) => handleAutoStartToggle(e.target.checked)}
+                      disabled={autoStartLoading}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                  {autoStartLoading && (
+                    <div className="ml-2 animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>💡 Conseil :</strong> Lorsque cette option est activée, OpenWispr se lancera 
+                  discrètement dans la barre des tâches au démarrage de votre ordinateur, 
+                  prêt à être utilisé à tout moment.
+                </p>
+              </div>
+            </div>
+
             {/* Hotkey Section */}
             <div className="border-t pt-8">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Dictation Hotkey
+                  Raccourci de dictée
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  Configure the key you press to start and stop voice dictation.
+                  Configurez la touche ou combinaison de touches pour démarrer et arrêter la dictée vocale.
                 </p>
               </div>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Activation Key
+                    Raccourci d'activation
                   </label>
                   <Input
-                    placeholder="Default: ` (backtick)"
+                    placeholder="Par défaut : ` (backtick)"
                     value={dictationKey}
                     onChange={(e) => setDictationKey(e.target.value)}
                     className="text-center text-lg font-mono"
+                    readOnly
                   />
                   <p className="text-xs text-gray-500 mt-2">
-                    Press this key from anywhere to start/stop dictation
+                    Utilisez le clavier ci-dessous pour sélectionner votre raccourci
                   </p>
                 </div>
+                
+                {/* Options de configuration */}
+                <div className="flex gap-4 p-3 bg-blue-50 rounded-lg">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="keyboardMode"
+                      checked={!allowCombinations}
+                      onChange={() => setAllowCombinations(false)}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-blue-800">Touche simple</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="keyboardMode"
+                      checked={allowCombinations}
+                      onChange={() => setAllowCombinations(true)}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-blue-800">Combinaison de touches</span>
+                  </label>
+                </div>
+
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-3">
-                    Click any key to select it:
-                  </h4>
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-medium text-gray-900">
+                      {allowCombinations 
+                        ? 'Sélectionnez votre combinaison de touches :' 
+                        : 'Cliquez sur une touche pour la sélectionner :'}
+                    </h4>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setKeyboardLayout(keyboardLayout === 'qwerty' ? 'azerty' : 'qwerty')}
+                      >
+                        {keyboardLayout.toUpperCase()}
+                      </Button>
+                    </div>
+                  </div>
                   <React.Suspense
                     fallback={
                       <div className="h-32 flex items-center justify-center text-gray-500">
-                        Loading keyboard...
+                        Chargement du clavier...
                       </div>
                     }
                   >
-                    <InteractiveKeyboard
-                      selectedKey={dictationKey}
-                      setSelectedKey={setDictationKey}
+                    <EnhancedKeyboard
+                      selectedKeys={selectedKeys}
+                      setSelectedKeys={setSelectedKeys}
+                      layout={keyboardLayout}
+                      allowCombinations={allowCombinations}
                     />
                   </React.Suspense>
                 </div>
+                
+                {allowCombinations && selectedKeys.length > 1 && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      <strong>💡 Conseil :</strong> Les combinaisons avec Ctrl, Alt ou Shift sont recommandées 
+                      pour éviter les conflits avec la saisie normale.
+                    </p>
+                  </div>
+                )}
+                
                 <Button
                   onClick={saveKey}
-                  disabled={!dictationKey.trim()}
+                  disabled={selectedKeys.length === 0}
                   className="w-full"
                 >
-                  Save Hotkey
+                  Sauvegarder le raccourci
                 </Button>
               </div>
             </div>
@@ -499,8 +670,8 @@ export default function SettingsPage({
                   Permissions
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  Test and manage app permissions for microphone and
-                  accessibility.
+                  Testez et gérez les permissions de l'application pour le microphone et
+                  l'accessibilité.
                 </p>
               </div>
               <div className="space-y-3">
@@ -510,7 +681,7 @@ export default function SettingsPage({
                   className="w-full"
                 >
                   <Mic className="mr-2 h-4 w-4" />
-                  Test Microphone Permission
+                  Tester la permission du microphone
                 </Button>
                 <Button
                   onClick={permissionsHook.testAccessibilityPermission}
@@ -518,7 +689,7 @@ export default function SettingsPage({
                   className="w-full"
                 >
                   <Shield className="mr-2 h-4 w-4" />
-                  Test Accessibility Permission
+                  Tester la permission d'accessibilité
                 </Button>
                 <Button
                   onClick={resetAccessibilityPermissions}
@@ -526,7 +697,7 @@ export default function SettingsPage({
                   className="w-full"
                 >
                   <span className="mr-2">⚙️</span>
-                  Fix Permission Issues
+                  Corriger les problèmes de permissions
                 </Button>
               </div>
             </div>
@@ -535,12 +706,12 @@ export default function SettingsPage({
             <div className="border-t pt-8">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  About OpenWispr
+                  À propos d'OpenWispr
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  OpenWispr converts your speech to text using AI. Press your
-                  hotkey, speak, and we'll type what you said wherever your
-                  cursor is.
+                  OpenWispr convertit votre parole en texte en utilisant l'IA. Appuyez sur votre
+                  touche de raccourci, parlez, et nous taperons ce que vous avez dit là où se trouve votre
+                  curseur.
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-6">
@@ -549,7 +720,7 @@ export default function SettingsPage({
                     <Keyboard className="w-4 h-4 text-white" />
                   </div>
                   <p className="font-medium text-gray-800 mb-1">
-                    Default Hotkey
+                    Touche de raccourci par défaut
                   </p>
                   <p className="text-gray-600 font-mono text-xs">
                     {dictationKey || "` (backtick)"}
@@ -568,8 +739,8 @@ export default function SettingsPage({
                   <div className="w-8 h-8 mx-auto mb-2 bg-green-600 rounded-lg flex items-center justify-center">
                     <span className="text-white text-sm">✓</span>
                   </div>
-                  <p className="font-medium text-gray-800 mb-1">Status</p>
-                  <p className="text-green-600 text-xs font-medium">Active</p>
+                  <p className="font-medium text-gray-800 mb-1">Statut</p>
+                  <p className="text-green-600 text-xs font-medium">Actif</p>
                 </div>
               </div>
 
@@ -578,9 +749,9 @@ export default function SettingsPage({
                 <Button
                   onClick={() => {
                     showConfirmDialog({
-                      title: "Reset Onboarding",
+                      title: "Réinitialiser l'intégration",
                       description:
-                        "Are you sure you want to reset the onboarding process? This will clear your setup and show the welcome flow again.",
+                        "Êtes-vous sûr de vouloir réinitialiser le processus d'intégration ? Cela effacera votre configuration et affichera à nouveau le flux de bienvenue.",
                       onConfirm: () => {
                         localStorage.removeItem("onboardingCompleted");
                         window.location.reload();
@@ -592,22 +763,22 @@ export default function SettingsPage({
                   className="w-full text-amber-600 border-amber-300 hover:bg-amber-50 hover:border-amber-400"
                 >
                   <span className="mr-2">🔄</span>
-                  Reset Onboarding
+                  Réinitialiser l'intégration
                 </Button>
                 <Button
                   onClick={() => {
                     showConfirmDialog({
-                      title: "⚠️ DANGER: Cleanup App Data",
+                      title: "⚠️ DANGER : Nettoyer les données de l'application",
                       description:
-                        "This will permanently delete ALL OpenWispr data including:\n\n• Database and transcriptions\n• Local storage settings\n• Downloaded Whisper models\n• Environment files\n\nYou will need to manually remove app permissions in System Settings.\n\nThis action cannot be undone. Are you sure?",
+                        "Ceci supprimera définitivement TOUTES les données d'OpenWispr incluant :\n\n• Base de données et transcriptions\n• Paramètres de stockage local\n• Modèles Whisper téléchargés\n• Fichiers d'environnement\n\nVous devrez supprimer manuellement les permissions de l'application dans les Réglages Système.\n\nCette action ne peut pas être annulée. Êtes-vous sûr ?",
                       onConfirm: () => {
                         window.electronAPI
                           ?.cleanupApp()
                           .then(() => {
                             showAlertDialog({
-                              title: "Cleanup Completed",
+                              title: "Nettoyage terminé",
                               description:
-                                "✅ Cleanup completed! All app data has been removed.",
+                                "✅ Nettoyage terminé ! Toutes les données de l'application ont été supprimées.",
                             });
                             setTimeout(() => {
                               window.location.reload();
@@ -615,8 +786,8 @@ export default function SettingsPage({
                           })
                           .catch((error) => {
                             showAlertDialog({
-                              title: "Cleanup Failed",
-                              description: `❌ Cleanup failed: ${error.message}`,
+                              title: "Échec du nettoyage",
+                              description: `❌ Échec du nettoyage : ${error.message}`,
                             });
                           });
                       },
@@ -627,7 +798,7 @@ export default function SettingsPage({
                   className="w-full text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
                 >
                   <span className="mr-2">🗑️</span>
-                  Clean Up All App Data
+                  Nettoyer toutes les données de l'application
                 </Button>
               </div>
             </div>
@@ -639,7 +810,7 @@ export default function SettingsPage({
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Speech to Text Processing
+                Traitement de la parole en texte
               </h3>
               <ProcessingModeSelector
                 useLocalWhisper={useLocalWhisper}
@@ -652,11 +823,11 @@ export default function SettingsPage({
 
             {!useLocalWhisper && (
               <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <h4 className="font-medium text-blue-900">OpenAI API Setup</h4>
+                <h4 className="font-medium text-blue-900">Configuration de l'API OpenAI</h4>
                 <ApiKeyInput
                   apiKey={openaiApiKey}
                   setApiKey={setOpenaiApiKey}
-                  helpText="Get your API key from platform.openai.com"
+                  helpText="Obtenez votre clé API depuis platform.openai.com"
                 />
               </div>
             )}
@@ -664,7 +835,7 @@ export default function SettingsPage({
             {useLocalWhisper && whisperHook.whisperInstalled && (
               <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
                 <h4 className="font-medium text-purple-900">
-                  Local Whisper Model
+                  Modèle Whisper local
                 </h4>
                 <WhisperModelPicker
                   selectedModel={whisperModel}
@@ -675,7 +846,7 @@ export default function SettingsPage({
             )}
 
             <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-              <h4 className="font-medium text-gray-900">Preferred Language</h4>
+              <h4 className="font-medium text-gray-900">Langue préférée</h4>
               <LanguageSelector
                 value={preferredLanguage}
                 onChange={(value) => {
@@ -699,15 +870,15 @@ export default function SettingsPage({
                 }
 
                 showAlertDialog({
-                  title: "Settings Saved",
-                  description: `Transcription mode: ${
-                    useLocalWhisper ? "Local Whisper" : "OpenAI API"
-                  }. Language: ${preferredLanguage}.`,
+                  title: "Paramètres sauvegardés",
+                  description: `Mode de transcription : ${
+                    useLocalWhisper ? "Whisper local" : "API OpenAI"
+                  }. Langue : ${preferredLanguage}.`,
                 });
               }}
               className="w-full"
             >
-              Save Transcription Settings
+              Sauvegarder les paramètres de transcription
             </Button>
           </div>
         );
@@ -717,20 +888,20 @@ export default function SettingsPage({
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                AI Text Enhancement
+                Amélioration de texte IA
               </h3>
               <p className="text-sm text-gray-600 mb-6">
-                Configure how AI models clean up and format your transcriptions.
-                This handles commands like "scratch that", creates proper lists,
-                and fixes obvious errors while preserving your natural tone.
+                Configurez comment les modèles IA nettoient et formatent vos transcriptions.
+                Cela gère les commandes comme "efface ça", crée des listes appropriées,
+                et corrige les erreurs évidentes tout en préservant votre ton naturel.
               </p>
 
               {useLocalWhisper && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
                   <p className="text-sm text-amber-800">
-                    <span className="font-medium">Note:</span> AI text
-                    enhancement requires API access and is currently only
-                    available when using cloud-based providers.
+                    <span className="font-medium">Note :</span> L'amélioration de texte IA
+                    nécessite un accès API et n'est actuellement disponible
+                    qu'avec les fournisseurs basés sur le cloud.
                   </p>
                 </div>
               )}
@@ -738,10 +909,10 @@ export default function SettingsPage({
               <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl">
                 <div>
                   <label className="text-sm font-medium text-green-800">
-                    Enable AI Text Enhancement
+                    Activer l'amélioration de texte IA
                   </label>
                   <p className="text-xs text-green-700">
-                    Use AI to automatically improve transcription quality
+                    Utiliser l'IA pour améliorer automatiquement la qualité de transcription
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -773,7 +944,7 @@ export default function SettingsPage({
             {useReasoningModel && (
               <>
                 <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                  <h4 className="font-medium text-blue-900">AI Provider</h4>
+                  <h4 className="font-medium text-blue-900">Fournisseur IA</h4>
                   <select
                     value={reasoningProvider}
                     onChange={(e) => {
@@ -792,7 +963,7 @@ export default function SettingsPage({
                 </div>
 
                 <div className="space-y-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                  <h4 className="font-medium text-indigo-900">AI Model</h4>
+                  <h4 className="font-medium text-indigo-900">Modèle IA</h4>
                   <select
                     value={reasoningModel}
                     onChange={(e) => setReasoningModel(e.target.value)}
@@ -807,19 +978,19 @@ export default function SettingsPage({
                     ))}
                   </select>
                   <p className="text-xs text-indigo-600">
-                    Different models offer varying levels of quality and speed
+                    Différents modèles offrent des niveaux variés de qualité et de vitesse
                   </p>
                 </div>
 
                 {reasoningProvider === "openai" && (
                   <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                     <h4 className="font-medium text-blue-900">
-                      OpenAI API Key
+                      Clé API OpenAI
                     </h4>
                     <ApiKeyInput
                       apiKey={openaiApiKey}
                       setApiKey={setOpenaiApiKey}
-                      helpText="Same as your transcription API key"
+                      helpText="Identique à votre clé API de transcription"
                     />
                   </div>
                 )}
@@ -827,7 +998,7 @@ export default function SettingsPage({
                 {reasoningProvider === "anthropic" && (
                   <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
                     <h4 className="font-medium text-purple-900">
-                      Anthropic API Key
+                      Clé API Anthropic
                     </h4>
                     <div className="flex gap-2">
                       <Input
@@ -845,11 +1016,11 @@ export default function SettingsPage({
                         }
                         className="border-purple-300 text-purple-700 hover:bg-purple-50"
                       >
-                        Paste
+                        Coller
                       </Button>
                     </div>
                     <p className="text-xs text-purple-600">
-                      Get your API key from console.anthropic.com
+                      Obtenez votre clé API depuis console.anthropic.com
                     </p>
                   </div>
                 )}
@@ -857,7 +1028,7 @@ export default function SettingsPage({
             )}
 
             <Button onClick={saveReasoningSettings} className="w-full">
-              Save AI Model Settings
+              Sauvegarder les paramètres du modèle IA
             </Button>
           </div>
         );
@@ -867,43 +1038,43 @@ export default function SettingsPage({
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Agent Configuration
+                Configuration de l'agent
               </h3>
               <p className="text-sm text-gray-600 mb-6">
-                Customize your AI assistant's name and behavior to make
-                interactions more personal and effective.
+                Personnalisez le nom et le comportement de votre assistant IA pour rendre
+                les interactions plus personnelles et efficaces.
               </p>
             </div>
 
             <div className="space-y-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
               <h4 className="font-medium text-purple-900 mb-3">
-                💡 How to use agent names:
+                💡 Comment utiliser les noms d'agent :
               </h4>
               <ul className="text-sm text-purple-800 space-y-2">
                 <li>
-                  • Say "Hey {agentName}, write a formal email" for specific
-                  instructions
+                  • Dites "Hey {agentName}, écris un email formel" pour des
+                  instructions spécifiques
                 </li>
                 <li>
-                  • Use "Hey {agentName}, format this as a list" for text
-                  enhancement commands
+                  • Utilisez "Hey {agentName}, formate ceci en liste" pour des
+                  commandes d'amélioration de texte
                 </li>
                 <li>
-                  • The agent will recognize when you're addressing it directly
-                  vs. dictating content
+                  • L'agent reconnaîtra quand vous vous adressez directement à lui
+                  par rapport à la dictée de contenu
                 </li>
                 <li>
-                  • Makes conversations feel more natural and helps distinguish
-                  commands from dictation
+                  • Rend les conversations plus naturelles et aide à distinguer
+                  les commandes de la dictée
                 </li>
               </ul>
             </div>
 
             <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-              <h4 className="font-medium text-gray-900">Current Agent Name</h4>
+              <h4 className="font-medium text-gray-900">Nom actuel de l'agent</h4>
               <div className="flex gap-3">
                 <Input
-                  placeholder="e.g., Assistant, Jarvis, Alex..."
+                  placeholder="ex: Assistant, Jarvis, Alex..."
                   value={agentName}
                   onChange={(e) => setAgentName(e.target.value)}
                   className="flex-1 text-center text-lg font-mono"
@@ -912,37 +1083,36 @@ export default function SettingsPage({
                   onClick={() => {
                     setAgentName(agentName.trim());
                     showAlertDialog({
-                      title: "Agent Name Updated",
-                      description: `Your agent is now named "${agentName.trim()}". You can address it by saying "Hey ${agentName.trim()}" followed by your instructions.`,
+                      title: "Nom de l'agent mis à jour",
+                      description: `Votre agent s'appelle maintenant "${agentName.trim()}". Vous pouvez vous adresser à lui en disant "Hey ${agentName.trim()}" suivi de vos instructions.`,
                     });
                   }}
                   disabled={!agentName.trim()}
                 >
-                  Save
+                  Sauvegarder
                 </Button>
               </div>
               <p className="text-xs text-gray-600 mt-2">
-                Choose a name that feels natural to say and remember
+                Choisissez un nom qui semble naturel à dire et à retenir
               </p>
             </div>
 
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">
-                🎯 Example Usage:
+                🎯 Exemples d'utilisation :
               </h4>
               <div className="text-sm text-blue-800 space-y-1">
                 <p>
-                  • "Hey {agentName}, write an email to my team about the
-                  meeting"
+                  • "Hey {agentName}, écris un email à mon équipe à propos de la
+                  réunion"
                 </p>
                 <p>
-                  • "Hey {agentName}, make this more professional" (after
-                  dictating text)
+                  • "Hey {agentName}, rends ceci plus professionnel" (après
+                  avoir dicté du texte)
                 </p>
-                <p>• "Hey {agentName}, convert this to bullet points"</p>
+                <p>• "Hey {agentName}, convertis ceci en puces"</p>
                 <p>
-                  • Regular dictation: "This is just normal text" (no agent name
-                  needed)
+                  • Dictée normale : "Ceci est juste du texte normal" (pas besoin du nom de l'agent)
                 </p>
               </div>
             </div>
@@ -955,11 +1125,11 @@ export default function SettingsPage({
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                AI Prompt Management
+                Gestion des prompts IA
               </h3>
               <p className="text-sm text-gray-600 mb-6">
-                View and customize the prompts that power OpenWispr's AI text processing. 
-                Adjust these to change how your transcriptions are formatted and enhanced.
+                Visualisez et personnalisez les prompts qui alimentent le traitement de texte IA d'OpenWispr. 
+                Ajustez-les pour changer la façon dont vos transcriptions sont formatées et améliorées.
               </p>
             </div>
             

@@ -19,8 +19,6 @@ class TrayManager {
   }
 
   async createTray() {
-    if (process.platform !== "darwin") return;
-
     try {
       const trayIcon = await this.loadTrayIcon();
       if (!trayIcon || trayIcon.isEmpty()) {
@@ -28,25 +26,34 @@ class TrayManager {
         return;
       }
 
-      trayIcon.setTemplateImage(true);
+      // setTemplateImage is macOS specific
+      if (process.platform === "darwin") {
+        trayIcon.setTemplateImage(true);
+      }
+      
       this.tray = new Tray(trayIcon);
 
       this.tray.setIgnoreDoubleClickEvents(true);
       this.setupTrayMenu();
       this.setupTrayEventHandlers();
+      
+      console.log("✅ Tray icon created successfully");
     } catch (error) {
       console.error("Error creating tray icon:", error.message);
     }
   }
 
   async loadTrayIcon() {
+    // Choose icon format based on platform
+    const iconName = process.platform === "win32" ? "icon.ico" : "iconTemplate@3x.png";
+    
     if (process.env.NODE_ENV === "development") {
       const iconPath = path.join(
         __dirname,
         "..",
         "..",
         "assets",
-        "iconTemplate@3x.png"
+        iconName
       );
       if (fs.existsSync(iconPath)) {
         return nativeImage.createFromPath(iconPath);
@@ -56,22 +63,22 @@ class TrayManager {
       }
     } else {
       const possiblePaths = [
-        path.join(process.resourcesPath, "assets", "iconTemplate@3x.png"),
+        path.join(process.resourcesPath, "assets", iconName),
         path.join(
           process.resourcesPath,
           "app.asar.unpacked",
           "assets",
-          "iconTemplate@3x.png"
+          iconName
         ),
-        path.join(__dirname, "..", "..", "assets", "iconTemplate@3x.png"),
+        path.join(__dirname, "..", "..", "assets", iconName),
         path.join(
           process.resourcesPath,
           "app",
           "assets",
-          "iconTemplate@3x.png"
+          iconName
         ),
-        path.join(app.getPath("exe"), "..", "Resources", "assets", "iconTemplate@3x.png"),
-        path.join(app.getAppPath(), "assets", "iconTemplate@3x.png"),
+        path.join(app.getPath("exe"), "..", "Resources", "assets", iconName),
+        path.join(app.getAppPath(), "assets", iconName),
       ];
       
       for (const testPath of possiblePaths) {
@@ -128,8 +135,12 @@ class TrayManager {
   setupTrayMenu() {
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: "Show Dictation Panel",
+        label: "Afficher le panneau de dictée",
         click: () => {
+          if (!this.mainWindow || this.mainWindow.isDestroyed()) {
+            console.log("Main window not available");
+            return;
+          }
           if (!this.mainWindow.isVisible()) {
             this.mainWindow.show();
           }
@@ -137,7 +148,7 @@ class TrayManager {
         },
       },
       {
-        label: "Open Control Panel",
+        label: "Ouvrir le panneau de contrôle",
         click: async () => {
           try {
             // Check if control panel window exists and is valid
@@ -177,7 +188,7 @@ class TrayManager {
       },
       { type: "separator" },
       {
-        label: "Quit OpenWispr",
+        label: "Quitter OpenWispr",
         click: () => {
           console.log("Quitting app via tray menu");
           app.quit();
@@ -185,7 +196,7 @@ class TrayManager {
       },
     ]);
 
-    this.tray.setToolTip("OpenWispr - Voice Dictation");
+    this.tray.setToolTip("OpenWispr - Dictée vocale");
     this.tray.setContextMenu(contextMenu);
   }
 

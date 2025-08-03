@@ -1,4 +1,5 @@
 import React from "react";
+import WindowControls from "./ui/WindowControls";
 
 interface TitleBarProps {
   title?: string;
@@ -6,6 +7,7 @@ interface TitleBarProps {
   children?: React.ReactNode;
   className?: string;
   actions?: React.ReactNode;
+  showWindowControls?: boolean;
 }
 
 export default function TitleBar({
@@ -14,6 +16,7 @@ export default function TitleBar({
   children,
   className = "",
   actions,
+  showWindowControls = true,
 }: TitleBarProps) {
   return (
     <div
@@ -31,12 +34,13 @@ export default function TitleBar({
           {children}
         </div>
 
-        {/* Right section - actions */}
+        {/* Right section - actions and window controls */}
         <div 
           className="flex items-center gap-2"
           style={{ WebkitAppRegion: "no-drag" }}
         >
           {actions}
+          {showWindowControls && <WindowControls className="ml-2" />}
         </div>
       </div>
     </div>

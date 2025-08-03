@@ -79,7 +79,7 @@
   },
   "publish": {
     "provider": "github",
-    "owner": "HeroTools",
+    "owner": "ClosiQode",
     "repo": "open-wispr",
     "private": false,
     "releaseType": "release"

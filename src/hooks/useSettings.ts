@@ -21,6 +21,10 @@ export interface HotkeySettings {
   dictationKey: string;
 }
 
+export interface GeneralSettings {
+  startOnBoot: boolean;
+}
+
 export interface ApiKeySettings {
   openaiApiKey: string;
   anthropicApiKey: string;
@@ -121,6 +125,16 @@ export function useSettings() {
     deserialize: String,
   });
 
+  // General settings
+  const [startOnBoot, setStartOnBoot] = useLocalStorage(
+    "startOnBoot",
+    false,
+    {
+      serialize: String,
+      deserialize: (value) => value === "true",
+    }
+  );
+
   // Computed values
   const reasoningProvider = getModelProvider(reasoningModel);
 
@@ -169,6 +183,13 @@ export function useSettings() {
     [setOpenaiApiKey, setAnthropicApiKey]
   );
 
+  const updateGeneralSettings = useCallback(
+    (settings: Partial<GeneralSettings>) => {
+      if (settings.startOnBoot !== undefined) setStartOnBoot(settings.startOnBoot);
+    },
+    [setStartOnBoot]
+  );
+
   return {
     useLocalWhisper,
     whisperModel,
@@ -182,6 +203,7 @@ export function useSettings() {
     openaiApiKey,
     anthropicApiKey,
     dictationKey,
+    startOnBoot,
     setUseLocalWhisper,
     setWhisperModel,
     setAllowOpenAIFallback,
@@ -203,8 +225,10 @@ export function useSettings() {
     setOpenaiApiKey,
     setAnthropicApiKey,
     setDictationKey,
+    setStartOnBoot,
     updateTranscriptionSettings,
     updateReasoningSettings,
     updateApiKeys,
+    updateGeneralSettings,
   };
 }

@@ -75,6 +75,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
   getUpdateStatus: () => ipcRenderer.invoke("get-update-status"),
 
+  // Auto-start functions
+  getAutoStartStatus: () => ipcRenderer.invoke("get-auto-start-status"),
+  setAutoStart: (enabled) => ipcRenderer.invoke("set-auto-start", enabled),
+
   // Update event listeners
   onUpdateAvailable: (callback) => ipcRenderer.on("update-available", callback),
   onUpdateNotAvailable: (callback) =>
