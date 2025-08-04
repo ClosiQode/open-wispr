@@ -49,10 +49,21 @@
   "afterSign": "scripts/afterSign.js",
   "win": {
     "target": [
-      "nsis",
-      "portable"
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
     ],
-    "icon": "assets/icon.ico"
+    "icon": "assets/icon.ico",
+    "publish": {
+      "provider": "github",
+      "owner": "ClosiQode",
+      "repo": "open-wispr"
+    }
   },
   "linux": {
     "target": [

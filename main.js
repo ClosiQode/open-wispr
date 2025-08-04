@@ -26,6 +26,13 @@ const ClipboardManager = require("./src/helpers/clipboard");
 const WhisperManager = require("./src/helpers/whisper");
 const TrayManager = require("./src/helpers/tray");
 const IPCHandlers = require("./src/helpers/ipcHandlers");
+
+// Force app to be considered as packaged for update testing in development
+if (process.env.NODE_ENV === "development") {
+  console.log("⚠️ Development mode - forcing app.isPackaged = true for update testing");
+  app.isPackaged = true;
+}
+
 const UpdateManager = require("./src/updater");
 
 // Set up PATH for production builds to find system Python

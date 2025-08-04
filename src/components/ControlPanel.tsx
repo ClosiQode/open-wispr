@@ -41,7 +41,14 @@ export default function ControlPanel() {
     const initializeUpdateStatus = async () => {
       try {
         const status = await window.electronAPI.getUpdateStatus();
-        setUpdateStatus(status);
+        // Only update if current state is still at default values
+        setUpdateStatus(prev => {
+          // Don't overwrite if update is already available or downloaded
+          if (prev.updateAvailable || prev.updateDownloaded) {
+            return { ...prev, isDevelopment: status.isDevelopment };
+          }
+          return status;
+        });
       } catch (error) {
         // Update status not critical for app function
       }
@@ -58,17 +65,24 @@ export default function ControlPanel() {
       setUpdateStatus((prev) => ({ ...prev, updateDownloaded: true }));
     };
 
+    const handleUpdateNotAvailable = (_event: any, _info: any) => {
+      setUpdateStatus((prev) => ({ ...prev, updateAvailable: false }));
+    };
+
     const handleUpdateError = (_event: any, _error: any) => {
       // Update errors are handled by the update service
+      setUpdateStatus((prev) => ({ ...prev, updateAvailable: false }));
     };
 
     window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
+    window.electronAPI.onUpdateNotAvailable?.(handleUpdateNotAvailable);
     window.electronAPI.onUpdateDownloaded(handleUpdateDownloaded);
     window.electronAPI.onUpdateError(handleUpdateError);
 
     // Cleanup listeners on unmount
     return () => {
       window.electronAPI.removeAllListeners?.("update-available");
+      window.electronAPI.removeAllListeners?.("update-not-available");
       window.electronAPI.removeAllListeners?.("update-downloaded");
       window.electronAPI.removeAllListeners?.("update-error");
     };

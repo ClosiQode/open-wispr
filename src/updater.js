@@ -7,6 +7,7 @@ class UpdateManager {
     this.controlPanelWindow = null;
     this.updateAvailable = false;
     this.updateDownloaded = false;
+    this.autoInstallAfterDownload = false;
 
     this.setupAutoUpdater();
     this.setupIPCHandlers();
@@ -18,12 +19,6 @@ class UpdateManager {
   }
 
   setupAutoUpdater() {
-    // Only configure auto-updater in production
-    if (process.env.NODE_ENV === "development") {
-      console.log("⚠️ Auto-updater disabled in development mode");
-      return;
-    }
-
     // Configure auto-updater for GitHub releases
     autoUpdater.setFeedURL({
       provider: "github",
@@ -37,6 +32,26 @@ class UpdateManager {
 
     // Set up event handlers
     this.setupEventHandlers();
+
+    // Force dev update config for testing
+    if (process.env.NODE_ENV === "development") {
+      console.log("⚠️ Development mode - forcing update config for testing");
+      autoUpdater.forceDevUpdateConfig = true;
+      // Set environment variable to force updates
+      process.env.ELECTRON_IS_DEV = "false";
+      // Also set the app as packaged for update purposes
+      const { app } = require("electron");
+      app.isPackaged = true;
+      console.log("⚠️ Forced app.isPackaged =", app.isPackaged);
+      console.log("⚠️ autoUpdater.forceDevUpdateConfig =", autoUpdater.forceDevUpdateConfig);
+      
+      // Debug: Check the isUpdaterActive method
+      setTimeout(() => {
+        console.log("⚠️ Debug - app.isPackaged:", app.isPackaged);
+        console.log("⚠️ Debug - autoUpdater.forceDevUpdateConfig:", autoUpdater.forceDevUpdateConfig);
+        console.log("⚠️ Debug - isUpdaterActive would return:", app.isPackaged || autoUpdater.forceDevUpdateConfig);
+      }, 1000);
+    }
   }
 
   setupEventHandlers() {
@@ -85,6 +100,15 @@ class UpdateManager {
 
       // Send notification to renderer processes
       this.notifyRenderers("update-downloaded", info);
+
+      // Auto-install if requested
+      if (this.autoInstallAfterDownload) {
+        console.log("🔄 Auto-installing update...");
+        this.autoInstallAfterDownload = false;
+        setImmediate(() => {
+          autoUpdater.quitAndInstall();
+        });
+      }
     });
   }
 
@@ -101,26 +125,40 @@ class UpdateManager {
     // Check for updates manually
     ipcMain.handle("check-for-updates", async () => {
       try {
+        // Allow update checks in development for testing
         if (process.env.NODE_ENV === "development") {
-          console.log("⚠️ Update check skipped in development mode");
-          return {
-            updateAvailable: false,
-            message: "Update checks are disabled in development mode",
-          };
+          console.log("⚠️ Development mode - allowing update check for testing");
         }
 
         console.log("🔍 Manual update check requested...");
         const result = await autoUpdater.checkForUpdates();
 
         if (result && result.updateInfo) {
-          console.log("📋 Update check result:", result.updateInfo);
-          return {
-            updateAvailable: true,
-            version: result.updateInfo.version,
-            releaseDate: result.updateInfo.releaseDate,
-            files: result.updateInfo.files,
-            releaseNotes: result.updateInfo.releaseNotes,
-          };
+          const { app } = require("electron");
+          const currentVersion = app.getVersion();
+          const availableVersion = result.updateInfo.version;
+          
+          console.log(`📋 Version comparison: current=${currentVersion}, available=${availableVersion}`);
+          
+          // Compare versions using simple version comparison
+          const isUpdateAvailable = this.compareVersions(availableVersion, currentVersion) > 0;
+          
+          if (isUpdateAvailable) {
+            console.log("📥 Update available:", result.updateInfo);
+            return {
+              updateAvailable: true,
+              version: result.updateInfo.version,
+              releaseDate: result.updateInfo.releaseDate,
+              files: result.updateInfo.files,
+              releaseNotes: result.updateInfo.releaseNotes,
+            };
+          } else {
+            console.log(`✅ No update needed - current version ${currentVersion} is up to date`);
+            return {
+              updateAvailable: false,
+              message: `You are running the latest version (${currentVersion})`,
+            };
+          }
         } else {
           console.log("✅ No updates available");
           return {
@@ -138,11 +176,7 @@ class UpdateManager {
     ipcMain.handle("download-update", async () => {
       try {
         if (process.env.NODE_ENV === "development") {
-          console.log("⚠️ Update download skipped in development mode");
-          return {
-            success: false,
-            message: "Update downloads are disabled in development mode",
-          };
+          console.log("⚠️ Development mode - allowing update download for testing");
         }
 
         console.log("📥 Manual update download requested...");
@@ -159,11 +193,7 @@ class UpdateManager {
     ipcMain.handle("install-update", async () => {
       try {
         if (process.env.NODE_ENV === "development") {
-          console.log("⚠️ Update installation skipped in development mode");
-          return {
-            success: false,
-            message: "Update installation is disabled in development mode",
-          };
+          console.log("⚠️ Development mode - allowing update installation for testing");
         }
 
         if (!this.updateDownloaded) {
@@ -184,6 +214,25 @@ class UpdateManager {
         return { success: true, message: "Update installation started" };
       } catch (error) {
         console.error("❌ Update installation error:", error);
+        throw error;
+      }
+    });
+
+    // Auto-update (download and install)
+    ipcMain.handle("auto-update", async () => {
+      try {
+        if (process.env.NODE_ENV === "development") {
+          console.log("⚠️ Development mode - allowing auto-update for testing");
+        }
+
+        console.log("🚀 Auto-update requested (download + install)...");
+        this.autoInstallAfterDownload = true;
+        await autoUpdater.downloadUpdate();
+
+        return { success: true, message: "Auto-update started" };
+      } catch (error) {
+        console.error("❌ Auto-update error:", error);
+        this.autoInstallAfterDownload = false;
         throw error;
       }
     });
@@ -215,15 +264,39 @@ class UpdateManager {
     });
   }
 
+  // Method to compare two version strings (semver-like)
+  compareVersions(version1, version2) {
+    const v1parts = version1.split('.').map(Number);
+    const v2parts = version2.split('.').map(Number);
+    const maxLength = Math.max(v1parts.length, v2parts.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+      const v1part = v1parts[i] || 0;
+      const v2part = v2parts[i] || 0;
+      
+      if (v1part > v2part) return 1;
+      if (v1part < v2part) return -1;
+    }
+    
+    return 0; // versions are equal
+  }
+
   // Method to check for updates on startup
   checkForUpdatesOnStartup() {
-    if (process.env.NODE_ENV !== "development") {
-      // Wait a bit for the app to fully initialize
-      setTimeout(() => {
-        console.log("🔄 Checking for updates on startup...");
-        autoUpdater.checkForUpdatesAndNotify();
-      }, 5000);
-    }
+    // Wait a bit for the app to fully initialize
+    setTimeout(() => {
+      // Don't check if update is already available or downloaded
+      if (this.updateAvailable || this.updateDownloaded) {
+        console.log("⏭️ Skipping startup update check - update already available/downloaded");
+        return;
+      }
+      
+      console.log("🔄 Checking for updates on startup...");
+      if (process.env.NODE_ENV === "development") {
+        console.log("⚠️ Development mode - forcing update check");
+      }
+      autoUpdater.checkForUpdatesAndNotify();
+    }, 5000);
   }
 }
 

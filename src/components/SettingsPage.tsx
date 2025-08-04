@@ -153,7 +153,14 @@ export default function SettingsPage({
 
       const statusResult = await window.electronAPI?.getUpdateStatus();
       if (statusResult && mounted) {
-        setUpdateStatus(statusResult);
+        // Only update if current state is still at default values
+        setUpdateStatus(prev => {
+          // Don't overwrite if update is already available or downloaded
+          if (prev.updateAvailable || prev.updateDownloaded) {
+            return { ...prev, isDevelopment: statusResult.isDevelopment };
+          }
+          return statusResult;
+        });
         subscribeToUpdates();
       }
 
@@ -169,6 +176,7 @@ export default function SettingsPage({
       // Always clean up update listeners if they exist
       if (window.electronAPI) {
         window.electronAPI.removeAllListeners?.("update-available");
+        window.electronAPI.removeAllListeners?.("update-not-available");
         window.electronAPI.removeAllListeners?.("update-downloaded");
         window.electronAPI.removeAllListeners?.("update-error");
         window.electronAPI.removeAllListeners?.("update-download-progress");
@@ -196,13 +204,20 @@ export default function SettingsPage({
         setUpdateDownloadProgress(progressObj.percent || 0);
       };
 
+      const handleUpdateNotAvailable = (event, info) => {
+        setUpdateStatus((prev) => ({ ...prev, updateAvailable: false }));
+        setCheckingForUpdates(false);
+      };
+
       const handleUpdateError = (event, error) => {
         setCheckingForUpdates(false);
         setDownloadingUpdate(false);
+        setUpdateStatus((prev) => ({ ...prev, updateAvailable: false }));
         console.error("Update error:", error);
       };
 
       window.electronAPI.onUpdateAvailable?.(handleUpdateAvailable);
+      window.electronAPI.onUpdateNotAvailable?.(handleUpdateNotAvailable);
       window.electronAPI.onUpdateDownloaded?.(handleUpdateDownloaded);
       window.electronAPI.onUpdateDownloadProgress?.(handleUpdateProgress);
       window.electronAPI.onUpdateError?.(handleUpdateError);
@@ -405,6 +420,10 @@ export default function SettingsPage({
                           description: `Mise à jour disponible : v${result.version}`,
                         });
                       } else {
+                        setUpdateStatus((prev) => ({
+                          ...prev,
+                          updateAvailable: false,
+                        }));
                         showAlertDialog({
                           title: "Aucune mise à jour",
                           description:
@@ -412,6 +431,10 @@ export default function SettingsPage({
                         });
                       }
                     } catch (error: any) {
+                      setUpdateStatus((prev) => ({
+                        ...prev,
+                        updateAvailable: false,
+                      }));
                       showAlertDialog({
                         title: "Échec de la vérification",
                         description: `Erreur lors de la vérification des mises à jour : ${error.message}`,
@@ -437,35 +460,74 @@ export default function SettingsPage({
                 </Button>
 
                 {updateStatus.updateAvailable && !updateStatus.updateDownloaded && (
-                  <Button
-                    onClick={async () => {
-                      setDownloadingUpdate(true);
-                      setUpdateDownloadProgress(0);
-                      try {
-                        await window.electronAPI?.downloadUpdate();
-                      } catch (error: any) {
-                        setDownloadingUpdate(false);
-                        showAlertDialog({
-                          title: "Échec du téléchargement",
-                          description: `Échec du téléchargement de la mise à jour : ${error.message}`,
+                  <div className="space-y-2">
+                    <Button
+                      onClick={async () => {
+                        showConfirmDialog({
+                          title: "Mise à jour automatique",
+                          description: `Voulez-vous télécharger et installer automatiquement la mise à jour v${updateInfo.version} ? L'application redémarrera une fois l'installation terminée.`,
+                          onConfirm: async () => {
+                             setDownloadingUpdate(true);
+                             setUpdateDownloadProgress(0);
+                             try {
+                               await window.electronAPI?.autoUpdate();
+                               // L'installation se fera automatiquement après le téléchargement
+                             } catch (error: any) {
+                               setDownloadingUpdate(false);
+                               showAlertDialog({
+                                 title: "Échec de la mise à jour",
+                                 description: `Échec de la mise à jour automatique : ${error.message}`,
+                               });
+                             }
+                           },
                         });
-                      }
-                    }}
-                    disabled={downloadingUpdate}
-                    className="w-full bg-green-600 hover:bg-green-700"
-                  >
-                    {downloadingUpdate ? (
-                      <>
-                        <Download size={16} className="animate-pulse mr-2" />
-                        Téléchargement... {Math.round(updateDownloadProgress)}%
-                      </>
-                    ) : (
-                      <>
-                        <Download size={16} className="mr-2" />
-                        Télécharger la mise à jour v{updateInfo.version}
-                      </>
-                    )}
-                  </Button>
+                      }}
+                      disabled={downloadingUpdate}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      {downloadingUpdate ? (
+                        <>
+                          <Download size={16} className="animate-pulse mr-2" />
+                          Mise à jour en cours... {Math.round(updateDownloadProgress)}%
+                        </>
+                      ) : (
+                        <>
+                          <Download size={16} className="mr-2" />
+                          Mettre à jour automatiquement v{updateInfo.version}
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        setDownloadingUpdate(true);
+                        setUpdateDownloadProgress(0);
+                        try {
+                          await window.electronAPI?.downloadUpdate();
+                        } catch (error: any) {
+                          setDownloadingUpdate(false);
+                          showAlertDialog({
+                            title: "Échec du téléchargement",
+                            description: `Échec du téléchargement de la mise à jour : ${error.message}`,
+                          });
+                        }
+                      }}
+                      disabled={downloadingUpdate}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      variant="outline"
+                    >
+                      {downloadingUpdate ? (
+                        <>
+                          <Download size={16} className="animate-pulse mr-2" />
+                          Téléchargement... {Math.round(updateDownloadProgress)}%
+                        </>
+                      ) : (
+                        <>
+                          <Download size={16} className="mr-2" />
+                          Télécharger seulement v{updateInfo.version}
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 )}
 
                 {updateStatus.updateDownloaded && (
@@ -506,7 +568,17 @@ export default function SettingsPage({
                     {updateInfo.releaseNotes && (
                       <div className="text-sm text-blue-800">
                         <p className="font-medium mb-1">Nouveautés :</p>
-                        <div className="whitespace-pre-wrap">{updateInfo.releaseNotes}</div>
+                        <div 
+                          className="text-sm leading-relaxed [&>h3]:font-semibold [&>h3]:text-blue-900 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-4 [&>ul]:space-y-1 [&>li]:text-blue-800 [&>p]:mb-2 [&>strong]:font-semibold [&>strong]:text-blue-900 [&>em]:italic [&>code]:bg-blue-100 [&>code]:px-1 [&>code]:rounded"
+                          dangerouslySetInnerHTML={{ 
+                            __html: updateInfo.releaseNotes
+                              ?.replace(/\n/g, '<br>')
+                              ?.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                              ?.replace(/\*(.*?)\*/g, '<em>$1</em>')
+                              ?.replace(/`(.*?)`/g, '<code>$1</code>')
+                              || ''
+                          }}
+                        />
                       </div>
                     )}
                   </div>
