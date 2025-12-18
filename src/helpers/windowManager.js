@@ -92,25 +92,29 @@ class WindowManager {
   }
 
   async initializeHotkey() {
-    const callback = () => {
+    // Callback receives event type: "toggle", "keydown", or "keyup"
+    const callback = (eventType) => {
       if (!this.mainWindow.isVisible()) {
         this.mainWindow.show();
       }
-      this.mainWindow.webContents.send("toggle-dictation");
+      // Send event type to renderer for handling different modes
+      this.mainWindow.webContents.send("toggle-dictation", { eventType });
     };
 
     await this.hotkeyManager.initializeHotkey(this.mainWindow, callback);
   }
 
-  async updateHotkey(hotkey) {
-    const callback = () => {
+  async updateHotkey(hotkey, mode = "toggle") {
+    // Callback receives event type: "toggle", "keydown", or "keyup"
+    const callback = (eventType) => {
       if (!this.mainWindow.isVisible()) {
         this.mainWindow.show();
       }
-      this.mainWindow.webContents.send("toggle-dictation");
+      // Send event type to renderer for handling different modes
+      this.mainWindow.webContents.send("toggle-dictation", { eventType });
     };
 
-    return await this.hotkeyManager.updateHotkey(hotkey, callback);
+    return await this.hotkeyManager.updateHotkey(hotkey, callback, mode);
   }
 
   async startWindowDrag() {

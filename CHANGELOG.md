@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2025-12-18
+
+### Added
+- **Dynamic AI Models**: AI models are now fetched dynamically from APIs
+  - OpenAI models fetched via `/v1/models` endpoint
+  - 24-hour cache to minimize API calls
+  - Refresh button to force update
+  - Fallback to static list if no API key or error
+- **Updated AI Models**:
+  - OpenAI: GPT-5 Mini, GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo
+  - Anthropic: Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus
+
+### Technical Details
+- New `useAIModels` hook for dynamic model fetching
+- Models cached in localStorage with TTL
+- Automatic refresh when API key changes
+
 ## [1.0.13] - 2025-12-18
 
 ### Added

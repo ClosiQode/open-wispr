@@ -203,15 +203,38 @@ export default function App() {
 
   useEffect(() => {
     let recording = false;
-    const handleToggle = () => {
-      if (!recording && !isRecording && !isProcessing) {
-        startRecording();
-        recording = true;
-      } else if (isRecording) {
-        stopRecording();
-        recording = false;
+
+    // Handle different event types from hotkey manager
+    // - "toggle": Traditional toggle mode (press once to start, press again to stop)
+    // - "keydown": Push-to-talk key pressed (start recording)
+    // - "keyup": Push-to-talk key released (stop recording)
+    const handleToggle = (data) => {
+      const eventType = data?.eventType || "toggle";
+
+      if (eventType === "keydown") {
+        // Push-to-talk: Start recording when key is pressed
+        if (!recording && !isRecording && !isProcessing) {
+          startRecording();
+          recording = true;
+        }
+      } else if (eventType === "keyup") {
+        // Push-to-talk: Stop recording when key is released
+        if (isRecording) {
+          stopRecording();
+          recording = false;
+        }
+      } else {
+        // Toggle mode: Traditional behavior
+        if (!recording && !isRecording && !isProcessing) {
+          startRecording();
+          recording = true;
+        } else if (isRecording) {
+          stopRecording();
+          recording = false;
+        }
       }
     };
+
     if (window.electronAPI && window.electronAPI.onToggleDictation) {
       window.electronAPI.onToggleDictation(handleToggle);
     }

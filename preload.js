@@ -4,7 +4,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   pasteText: (text) => ipcRenderer.invoke("paste-text", text),
   hideWindow: () => ipcRenderer.invoke("hide-window"),
   showDictationPanel: () => ipcRenderer.invoke("show-dictation-panel"),
-  onToggleDictation: (callback) => ipcRenderer.on("toggle-dictation", callback),
+  onToggleDictation: (callback) => ipcRenderer.on("toggle-dictation", (event, data) => callback(data)),
 
   // Database functions
   saveTranscription: (text) =>
@@ -64,7 +64,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Cleanup function
   cleanupApp: () => ipcRenderer.invoke("cleanup-app"),
-  updateHotkey: (hotkey) => ipcRenderer.invoke("update-hotkey", hotkey),
+  updateHotkey: (hotkey, mode) => ipcRenderer.invoke("update-hotkey", hotkey, mode),
   startWindowDrag: () => ipcRenderer.invoke("start-window-drag"),
   stopWindowDrag: () => ipcRenderer.invoke("stop-window-drag"),
 

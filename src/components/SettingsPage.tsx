@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { RefreshCw, Download, Keyboard, Mic, Shield } from "lucide-react";
+import { RefreshCw, Download, Keyboard, Mic, Shield, Lock, Cloud, Zap, Book, Plus, Trash2, Search } from "lucide-react";
 import WhisperModelPicker from "./WhisperModelPicker";
-import ProcessingModeSelector from "./ui/ProcessingModeSelector";
 import ApiKeyInput from "./ui/ApiKeyInput";
 import { ConfirmDialog, AlertDialog } from "./ui/dialog";
 import { useSettings } from "../hooks/useSettings";
@@ -12,7 +11,9 @@ import { useAgentName } from "../utils/agentName";
 import { useWhisper } from "../hooks/useWhisper";
 import { usePermissions } from "../hooks/usePermissions";
 import { useClipboard } from "../hooks/useClipboard";
-import { REASONING_PROVIDERS } from "../utils/languages";
+import { useDictionary, DictionaryEntry } from "../hooks/useDictionary";
+import { useAIModels } from "../hooks/useAIModels";
+import { REASONING_PROVIDERS, TRANSCRIPTION_PROVIDERS, TranscriptionProviderId } from "../utils/languages";
 import LanguageSelector from "./ui/LanguageSelector";
 import PromptStudio from "./ui/PromptStudio";
 const InteractiveKeyboard = React.lazy(() => import("./ui/Keyboard"));
@@ -21,6 +22,7 @@ const EnhancedKeyboard = React.lazy(() => import("./ui/EnhancedKeyboard"));
 export type SettingsSectionType =
   | "general"
   | "transcription"
+  | "dictionary"
   | "aiModels"
   | "agentConfig"
   | "prompts";
@@ -55,19 +57,27 @@ export default function SettingsPage({
     openaiApiKey,
     anthropicApiKey,
     dictationKey,
+    hotkeyMode,
     startOnBoot,
+    transcriptionProvider,
+    groqApiKey,
+    groqModel,
     setUseLocalWhisper,
     setWhisperModel,
     setAllowOpenAIFallback,
     setAllowLocalFallback,
     setFallbackWhisperModel,
     setPreferredLanguage,
+    setTranscriptionProvider,
+    setGroqApiKey,
+    setGroqModel,
     setUseReasoningModel,
     setReasoningModel,
     setReasoningProvider,
     setOpenaiApiKey,
     setAnthropicApiKey,
     setDictationKey,
+    setHotkeyMode,
     setStartOnBoot,
     updateTranscriptionSettings,
     updateReasoningSettings,
@@ -95,6 +105,14 @@ export default function SettingsPage({
   const permissionsHook = usePermissions(showAlertDialog);
   const { pasteFromClipboardWithFallback } = useClipboard(showAlertDialog);
   const { agentName, setAgentName } = useAgentName();
+  const dictionaryHook = useDictionary();
+  const { openaiModels, anthropicModels, loading: modelsLoading, refreshModels } = useAIModels();
+
+  // États pour le dictionnaire
+  const [newDictFrom, setNewDictFrom] = useState("");
+  const [newDictTo, setNewDictTo] = useState("");
+  const [dictSearchQuery, setDictSearchQuery] = useState("");
+  const [editingEntry, setEditingEntry] = useState<DictionaryEntry | null>(null);
 
   // États pour le nouveau clavier amélioré
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -123,6 +141,13 @@ export default function SettingsPage({
       }
     }
   }, [selectedKeys, dictationKey, setDictationKey]);
+
+  // Charger les modèles IA quand la clé API change
+  useEffect(() => {
+    if (openaiApiKey) {
+      refreshModels(openaiApiKey);
+    }
+  }, [openaiApiKey, refreshModels]);
 
   // Synchroniser l'état du démarrage automatique au chargement
   useEffect(() => {
@@ -317,16 +342,17 @@ export default function SettingsPage({
 
   const saveKey = async () => {
     try {
-      await window.electronAPI?.updateHotkey(dictationKey);
+      await window.electronAPI?.updateHotkey(dictationKey, hotkeyMode);
+      const modeLabel = hotkeyMode === "push-to-talk" ? "Push-to-Talk" : "Toggle";
       showAlertDialog({
-          title: "Touche sauvegardée",
-          description: `Touche de dictée sauvegardée : ${dictationKey}`,
+          title: "Raccourci sauvegardé",
+          description: `Touche de dictée : ${dictationKey} (Mode: ${modeLabel})`,
         });
     } catch (error) {
       console.error("Failed to update hotkey:", error);
       showAlertDialog({
-        title: "Error",
-        description: `Failed to update hotkey: ${error.message}`,
+        title: "Erreur",
+        description: `Échec de la mise à jour du raccourci : ${error.message}`,
       });
     }
   };
@@ -659,7 +685,44 @@ export default function SettingsPage({
                   </p>
                 </div>
                 
-                {/* Options de configuration */}
+                {/* Mode de raccourci (Toggle / Push-to-Talk) */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Mode de déclenchement
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setHotkeyMode("toggle")}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                        hotkeyMode === "toggle"
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-900"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      <span className="text-2xl">🔄</span>
+                      <span className="font-medium">Toggle</span>
+                      <span className="text-xs opacity-70 text-center">
+                        Appuyez une fois pour démarrer,<br />une fois pour arrêter
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setHotkeyMode("push-to-talk")}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                        hotkeyMode === "push-to-talk"
+                          ? "border-green-500 bg-green-50 text-green-900"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      <span className="text-2xl">🎤</span>
+                      <span className="font-medium">Push-to-Talk</span>
+                      <span className="text-xs opacity-70 text-center">
+                        Maintenez appuyé pour parler,<br />relâchez pour arrêter
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Options de configuration du clavier */}
                 <div className="flex gap-4 p-3 bg-blue-50 rounded-lg">
                   <label className="flex items-center gap-2">
                     <input
@@ -884,16 +947,67 @@ export default function SettingsPage({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Traitement de la parole en texte
               </h3>
-              <ProcessingModeSelector
-                useLocalWhisper={useLocalWhisper}
-                setUseLocalWhisper={(value) => {
-                  setUseLocalWhisper(value);
-                  updateTranscriptionSettings({ useLocalWhisper: value });
-                }}
-              />
+
+              {/* Transcription Provider Selector - 3 boutons côte à côte */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Local */}
+                <button
+                  onClick={() => {
+                    setTranscriptionProvider("local");
+                    setUseLocalWhisper(true);
+                    updateTranscriptionSettings({ transcriptionProvider: "local", useLocalWhisper: true });
+                  }}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    transcriptionProvider === "local"
+                      ? "border-purple-500 bg-purple-50 text-purple-900"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <Lock className={`w-6 h-6 ${transcriptionProvider === "local" ? "text-purple-600" : "text-gray-500"}`} />
+                  <span className="font-medium">Whisper Local</span>
+                  <span className="text-xs opacity-70">Privé</span>
+                </button>
+
+                {/* OpenAI */}
+                <button
+                  onClick={() => {
+                    setTranscriptionProvider("openai");
+                    setUseLocalWhisper(false);
+                    updateTranscriptionSettings({ transcriptionProvider: "openai", useLocalWhisper: false });
+                  }}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    transcriptionProvider === "openai"
+                      ? "border-blue-500 bg-blue-50 text-blue-900"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <Cloud className={`w-6 h-6 ${transcriptionProvider === "openai" ? "text-blue-600" : "text-gray-500"}`} />
+                  <span className="font-medium">OpenAI</span>
+                  <span className="text-xs opacity-70">Cloud</span>
+                </button>
+
+                {/* Groq */}
+                <button
+                  onClick={() => {
+                    setTranscriptionProvider("groq");
+                    setUseLocalWhisper(false);
+                    updateTranscriptionSettings({ transcriptionProvider: "groq", useLocalWhisper: false });
+                  }}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    transcriptionProvider === "groq"
+                      ? "border-orange-500 bg-orange-50 text-orange-900"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <Zap className={`w-6 h-6 ${transcriptionProvider === "groq" ? "text-orange-600" : "text-gray-500"}`} />
+                  <span className="font-medium">Groq</span>
+                  <span className="text-xs opacity-70">Ultra-rapide</span>
+                </button>
+              </div>
             </div>
 
-            {!useLocalWhisper && (
+            {/* Configuration OpenAI */}
+            {transcriptionProvider === "openai" && (
               <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                 <h4 className="font-medium text-blue-900">Configuration de l'API OpenAI</h4>
                 <ApiKeyInput
@@ -904,7 +1018,59 @@ export default function SettingsPage({
               </div>
             )}
 
-            {useLocalWhisper && whisperHook.whisperInstalled && (
+            {/* Configuration Groq */}
+            {transcriptionProvider === "groq" && (
+              <div className="space-y-4 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                <h4 className="font-medium text-orange-900">Configuration Groq</h4>
+
+                {/* Clé API Groq */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-orange-800">Clé API Groq</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="gsk_..."
+                      value={groqApiKey}
+                      onChange={(e) => setGroqApiKey(e.target.value)}
+                      className="flex-1 text-sm border-orange-300 focus:border-orange-500"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => pasteFromClipboardWithFallback(setGroqApiKey)}
+                      className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    >
+                      Coller
+                    </Button>
+                  </div>
+                  <p className="text-xs text-orange-600">
+                    Obtenez votre clé API depuis console.groq.com
+                  </p>
+                </div>
+
+                {/* Sélecteur de modèle Groq */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-orange-800">Modèle Groq</label>
+                  <select
+                    value={groqModel}
+                    onChange={(e) => {
+                      setGroqModel(e.target.value);
+                      updateTranscriptionSettings({ groqModel: e.target.value });
+                    }}
+                    className="w-full p-2 border border-orange-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  >
+                    <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo (rapide)</option>
+                    <option value="whisper-large-v3">Whisper Large v3 (précis)</option>
+                  </select>
+                  <p className="text-xs text-orange-600">
+                    Turbo : plus rapide et économique. Large v3 : meilleure précision.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Configuration Whisper Local */}
+            {transcriptionProvider === "local" && whisperHook.whisperInstalled && (
               <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
                 <h4 className="font-medium text-purple-900">
                   Modèle Whisper local
@@ -932,26 +1098,305 @@ export default function SettingsPage({
             <Button
               onClick={() => {
                 updateTranscriptionSettings({
-                  useLocalWhisper,
+                  useLocalWhisper: transcriptionProvider === "local",
                   whisperModel,
                   preferredLanguage,
+                  transcriptionProvider,
+                  groqModel,
                 });
 
-                if (!useLocalWhisper && openaiApiKey.trim()) {
+                if (transcriptionProvider === "openai" && openaiApiKey.trim()) {
                   updateApiKeys({ openaiApiKey });
                 }
+                if (transcriptionProvider === "groq" && groqApiKey.trim()) {
+                  updateApiKeys({ groqApiKey });
+                }
+
+                const providerNames: Record<TranscriptionProviderId, string> = {
+                  local: "Whisper local",
+                  openai: "OpenAI",
+                  groq: "Groq",
+                };
 
                 showAlertDialog({
                   title: "Paramètres sauvegardés",
-                  description: `Mode de transcription : ${
-                    useLocalWhisper ? "Whisper local" : "API OpenAI"
-                  }. Langue : ${preferredLanguage}.`,
+                  description: `Mode de transcription : ${providerNames[transcriptionProvider]}. Langue : ${preferredLanguage}.`,
                 });
               }}
               className="w-full"
             >
               Sauvegarder les paramètres de transcription
             </Button>
+          </div>
+        );
+
+      case "dictionary":
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Dictionnaire personnalisé
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Ajoutez des remplacements automatiques pour corriger les mots souvent mal transcrits.
+                Les remplacements sont appliqués après chaque transcription.
+              </p>
+            </div>
+
+            {/* Formulaire d'ajout */}
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
+              <h4 className="font-medium text-gray-900">
+                {editingEntry ? "Modifier une entrée" : "Ajouter une entrée"}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm text-gray-600 mb-1 block">Mot mal transcrit</label>
+                  <Input
+                    placeholder="Ex: Claudi"
+                    value={editingEntry ? editingEntry.from : newDictFrom}
+                    onChange={(e) => editingEntry
+                      ? setEditingEntry({...editingEntry, from: e.target.value})
+                      : setNewDictFrom(e.target.value)
+                    }
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600 mb-1 block">Correction</label>
+                  <Input
+                    placeholder="Ex: Claude"
+                    value={editingEntry ? editingEntry.to : newDictTo}
+                    onChange={(e) => editingEntry
+                      ? setEditingEntry({...editingEntry, to: e.target.value})
+                      : setNewDictTo(e.target.value)
+                    }
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {editingEntry ? (
+                  <>
+                    <Button
+                      onClick={() => {
+                        if (editingEntry.from.trim() && editingEntry.to.trim()) {
+                          dictionaryHook.updateEntry(editingEntry.id, {
+                            from: editingEntry.from.trim(),
+                            to: editingEntry.to.trim(),
+                          });
+                          setEditingEntry(null);
+                          showAlertDialog({
+                            title: "Entrée modifiée",
+                            description: `"${editingEntry.from}" sera remplacé par "${editingEntry.to}".`,
+                          });
+                        }
+                      }}
+                      disabled={!editingEntry.from.trim() || !editingEntry.to.trim()}
+                      className="flex-1"
+                    >
+                      Sauvegarder
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setEditingEntry(null)}
+                    >
+                      Annuler
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      const result = dictionaryHook.addEntry(newDictFrom, newDictTo);
+                      if (result) {
+                        setNewDictFrom("");
+                        setNewDictTo("");
+                        showAlertDialog({
+                          title: "Entrée ajoutée",
+                          description: `"${result.from}" sera automatiquement remplacé par "${result.to}".`,
+                        });
+                      } else {
+                        showAlertDialog({
+                          title: "Erreur",
+                          description: "Impossible d'ajouter l'entrée. Vérifiez que les champs sont remplis et que l'entrée n'existe pas déjà.",
+                        });
+                      }
+                    }}
+                    disabled={!newDictFrom.trim() || !newDictTo.trim()}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ajouter au dictionnaire
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Liste des entrées */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-900">
+                  Entrées ({dictionaryHook.entries.length})
+                </h4>
+                {dictionaryHook.entries.length > 0 && (
+                  <div className="flex gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        placeholder="Rechercher..."
+                        value={dictSearchQuery}
+                        onChange={(e) => setDictSearchQuery(e.target.value)}
+                        className="pl-9 w-48"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        showConfirmDialog({
+                          title: "Supprimer toutes les entrées",
+                          description: "Êtes-vous sûr de vouloir supprimer toutes les entrées du dictionnaire ? Cette action est irréversible.",
+                          onConfirm: () => {
+                            dictionaryHook.clearAll();
+                            showAlertDialog({
+                              title: "Dictionnaire vidé",
+                              description: "Toutes les entrées ont été supprimées.",
+                            });
+                          },
+                          variant: "destructive",
+                        });
+                      }}
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {dictionaryHook.entries.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Book className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Aucune entrée dans le dictionnaire</p>
+                  <p className="text-sm">Ajoutez des mots à corriger ci-dessus</p>
+                </div>
+              ) : (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto">
+                    {dictionaryHook.searchEntries(dictSearchQuery).map((entry) => (
+                      <div
+                        key={entry.id}
+                        className={`flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0 ${
+                          entry.enabled ? "bg-white" : "bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <button
+                            onClick={() => dictionaryHook.toggleEntry(entry.id)}
+                            className={`w-10 h-5 rounded-full transition-colors ${
+                              entry.enabled ? "bg-green-500" : "bg-gray-300"
+                            }`}
+                          >
+                            <div
+                              className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                                entry.enabled ? "translate-x-5" : "translate-x-0.5"
+                              }`}
+                            />
+                          </button>
+                          <div className="flex-1">
+                            <span className={`font-mono ${entry.enabled ? "text-gray-900" : "text-gray-400"}`}>
+                              {entry.from}
+                            </span>
+                            <span className="mx-2 text-gray-400">→</span>
+                            <span className={`font-mono ${entry.enabled ? "text-green-600" : "text-gray-400"}`}>
+                              {entry.to}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingEntry(entry)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <span className="sr-only">Modifier</span>
+                            ✏️
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              showConfirmDialog({
+                                title: "Supprimer l'entrée",
+                                description: `Voulez-vous supprimer "${entry.from}" → "${entry.to}" ?`,
+                                onConfirm: () => dictionaryHook.deleteEntry(entry.id),
+                                variant: "destructive",
+                              });
+                            }}
+                            className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Import/Export */}
+            {dictionaryHook.entries.length > 0 && (
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const json = dictionaryHook.exportEntries();
+                    const blob = new Blob([json], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "openwispr-dictionary.json";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex-1"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exporter
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".json";
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        const text = await file.text();
+                        const result = dictionaryHook.importEntries(text);
+                        if (result.success) {
+                          showAlertDialog({
+                            title: "Import réussi",
+                            description: `${result.count} entrée(s) importée(s).`,
+                          });
+                        } else {
+                          showAlertDialog({
+                            title: "Erreur d'import",
+                            description: result.error || "Format de fichier invalide.",
+                          });
+                        }
+                      }
+                    };
+                    input.click();
+                  }}
+                  className="flex-1"
+                >
+                  📥 Importer
+                </Button>
+              </div>
+            )}
           </div>
         );
 
@@ -968,7 +1413,7 @@ export default function SettingsPage({
                 et corrige les erreurs évidentes tout en préservant votre ton naturel.
               </p>
 
-              {useLocalWhisper && (
+              {transcriptionProvider === "local" && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
                   <p className="text-sm text-amber-800">
                     <span className="font-medium">Note :</span> L'amélioration de texte IA
@@ -1035,22 +1480,35 @@ export default function SettingsPage({
                 </div>
 
                 <div className="space-y-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                  <h4 className="font-medium text-indigo-900">Modèle IA</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-indigo-900">Modèle IA</h4>
+                    <button
+                      onClick={() => refreshModels(openaiApiKey, true)}
+                      disabled={modelsLoading}
+                      className="p-1.5 rounded-md hover:bg-indigo-100 text-indigo-600 disabled:opacity-50 transition-colors"
+                      title="Actualiser la liste des modèles"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${modelsLoading ? "animate-spin" : ""}`} />
+                    </button>
+                  </div>
                   <select
                     value={reasoningModel}
                     onChange={(e) => setReasoningModel(e.target.value)}
                     className="w-full text-sm border border-indigo-300 rounded-md p-2 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                   >
-                    {REASONING_PROVIDERS[
-                      reasoningProvider as keyof typeof REASONING_PROVIDERS
-                    ]?.models.map((model) => (
-                      <option key={model.value} value={model.value}>
-                        {model.label} - {model.description}
+                    {reasoningProvider === "openai" && openaiModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.name}{model.description ? ` - ${model.description}` : ""}
+                      </option>
+                    ))}
+                    {reasoningProvider === "anthropic" && anthropicModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.name}{model.description ? ` - ${model.description}` : ""}
                       </option>
                     ))}
                   </select>
                   <p className="text-xs text-indigo-600">
-                    Différents modèles offrent des niveaux variés de qualité et de vitesse
+                    {modelsLoading ? "Chargement des modèles..." : "Différents modèles offrent des niveaux variés de qualité et de vitesse"}
                   </p>
                 </div>
 

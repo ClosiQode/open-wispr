@@ -303,8 +303,8 @@ class IPCHandlers {
       }
     });
 
-    ipcMain.handle("update-hotkey", async (event, hotkey) => {
-      return await this.windowManager.updateHotkey(hotkey);
+    ipcMain.handle("update-hotkey", async (event, hotkey, mode) => {
+      return await this.windowManager.updateHotkey(hotkey, mode || "toggle");
     });
 
     ipcMain.handle("start-window-drag", async (event) => {

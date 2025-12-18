@@ -77,7 +77,9 @@ const KEYBOARD_LAYOUTS = {
 };
 
 const MODIFIER_KEYS = ['Ctrl', 'Alt', 'Shift', 'CapsLock'];
-const FUNCTION_KEYS = ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'];
+const FUNCTION_KEYS_ROW1 = ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'];
+const FUNCTION_KEYS_ROW2 = ['F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23', 'F24'];
+const FUNCTION_KEYS = [...FUNCTION_KEYS_ROW1, ...FUNCTION_KEYS_ROW2];
 
 // Mapping des codes de touches vers les noms utilisés dans l'interface
 const KEY_CODE_MAP: { [key: string]: string } = {
@@ -94,9 +96,12 @@ const KEY_CODE_MAP: { [key: string]: string } = {
   'ControlRight': 'Ctrl',
   'AltLeft': 'Alt',
   'AltRight': 'Alt',
-  // Touches de fonction
+  // Touches de fonction F1-F12
   'F1': 'F1', 'F2': 'F2', 'F3': 'F3', 'F4': 'F4', 'F5': 'F5', 'F6': 'F6',
   'F7': 'F7', 'F8': 'F8', 'F9': 'F9', 'F10': 'F10', 'F11': 'F11', 'F12': 'F12',
+  // Touches de fonction F13-F24
+  'F13': 'F13', 'F14': 'F14', 'F15': 'F15', 'F16': 'F16', 'F17': 'F17', 'F18': 'F18',
+  'F19': 'F19', 'F20': 'F20', 'F21': 'F21', 'F22': 'F22', 'F23': 'F23', 'F24': 'F24',
   // Chiffres
   'Digit0': '0', 'Digit1': '1', 'Digit2': '2', 'Digit3': '3', 'Digit4': '4',
   'Digit5': '5', 'Digit6': '6', 'Digit7': '7', 'Digit8': '8', 'Digit9': '9',
@@ -318,15 +323,28 @@ export default function EnhancedKeyboard({
         </div>
       )}
 
-      {/* Touches de fonction */}
-      <div className="flex justify-center gap-2 mb-4">
-        {FUNCTION_KEYS.map((key) => (
+      {/* Touches de fonction - Ligne 1 (Esc, F1-F12) */}
+      <div className="flex justify-center gap-1 mb-2">
+        {FUNCTION_KEYS_ROW1.map((key) => (
           <Key
             key={key}
             keyValue={key}
             isSelected={selectedKeys.includes(key)}
             onClick={() => handleKeyClick(key)}
-            width={key === 'Esc' ? 'w-14' : 'w-12'}
+            width={key === 'Esc' ? 'w-12' : 'w-10'}
+          />
+        ))}
+      </div>
+
+      {/* Touches de fonction - Ligne 2 (F13-F24) */}
+      <div className="flex justify-center gap-1 mb-4">
+        {FUNCTION_KEYS_ROW2.map((key) => (
+          <Key
+            key={key}
+            keyValue={key}
+            isSelected={selectedKeys.includes(key)}
+            onClick={() => handleKeyClick(key)}
+            width="w-10"
           />
         ))}
       </div>

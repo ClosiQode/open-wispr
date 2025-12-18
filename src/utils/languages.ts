@@ -65,19 +65,35 @@ export const getLanguageLabel = (code: string): string => {
 };
 
 // Reasoning model configuration with provider abstraction
+// Note: This is used as fallback. Dynamic models are fetched via useAIModels hook.
 export const REASONING_PROVIDERS = {
   openai: {
     name: "OpenAI",
     models: [
       {
-        value: "gpt-3.5-turbo",
-        label: "GPT-3.5 Turbo",
-        description: "Rapide et efficace",
+        value: "gpt-5-mini",
+        label: "GPT-5 Mini",
+        description: "Dernière génération",
+      },
+      {
+        value: "gpt-4o",
+        label: "GPT-4o",
+        description: "Modèle le plus capable",
       },
       {
         value: "gpt-4o-mini",
         label: "GPT-4o Mini",
-        description: "Qualité supérieure",
+        description: "Rapide et économique",
+      },
+      {
+        value: "gpt-4-turbo",
+        label: "GPT-4 Turbo",
+        description: "Haute performance",
+      },
+      {
+        value: "gpt-3.5-turbo",
+        label: "GPT-3.5 Turbo",
+        description: "Classique",
       },
     ],
   },
@@ -85,14 +101,19 @@ export const REASONING_PROVIDERS = {
     name: "Anthropic",
     models: [
       {
-        value: "claude-3-haiku-20240307",
-        label: "Claude 3 Haiku",
-        description: "Rapide et abordable",
+        value: "claude-3-5-sonnet-20241022",
+        label: "Claude 3.5 Sonnet",
+        description: "Meilleur rapport qualité/prix",
       },
       {
-        value: "claude-3-sonnet-20240229",
-        label: "Claude 3 Sonnet",
-        description: "Performance équilibrée",
+        value: "claude-3-5-haiku-20241022",
+        label: "Claude 3.5 Haiku",
+        description: "Ultra-rapide",
+      },
+      {
+        value: "claude-3-opus-20240229",
+        label: "Claude 3 Opus",
+        description: "Le plus intelligent",
       },
     ],
   },
@@ -118,4 +139,64 @@ export const getModelProvider = (modelId: string): string => {
   const allModels = getAllReasoningModels();
   const model = allModels.find((m) => m.value === modelId);
   return model?.provider || "openai";
+};
+
+// Transcription provider configuration
+export type TranscriptionProviderId = "local" | "openai" | "groq";
+
+export interface TranscriptionModel {
+  value: string;
+  label: string;
+  description: string;
+}
+
+export interface TranscriptionProvider {
+  id: TranscriptionProviderId;
+  name: string;
+  description: string;
+  requiresApiKey: boolean;
+  apiKeyPlaceholder?: string;
+  apiKeyHelpUrl?: string;
+  models?: TranscriptionModel[];
+}
+
+export const TRANSCRIPTION_PROVIDERS: Record<TranscriptionProviderId, TranscriptionProvider> = {
+  local: {
+    id: "local",
+    name: "Whisper Local",
+    description: "Transcription privée sur votre machine",
+    requiresApiKey: false,
+  },
+  openai: {
+    id: "openai",
+    name: "OpenAI",
+    description: "API cloud OpenAI (whisper-1)",
+    requiresApiKey: true,
+    apiKeyPlaceholder: "sk-...",
+    apiKeyHelpUrl: "https://platform.openai.com/api-keys",
+  },
+  groq: {
+    id: "groq",
+    name: "Groq",
+    description: "Transcription ultra-rapide (216x temps réel)",
+    requiresApiKey: true,
+    apiKeyPlaceholder: "gsk_...",
+    apiKeyHelpUrl: "https://console.groq.com/keys",
+    models: [
+      {
+        value: "whisper-large-v3-turbo",
+        label: "Whisper Large v3 Turbo",
+        description: "Rapide et économique",
+      },
+      {
+        value: "whisper-large-v3",
+        label: "Whisper Large v3",
+        description: "Meilleure précision",
+      },
+    ],
+  },
+};
+
+export const getTranscriptionProvider = (providerId: TranscriptionProviderId): TranscriptionProvider => {
+  return TRANSCRIPTION_PROVIDERS[providerId] || TRANSCRIPTION_PROVIDERS.local;
 };

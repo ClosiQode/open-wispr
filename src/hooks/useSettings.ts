@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
-import { getModelProvider } from "../utils/languages";
+import { getModelProvider, TranscriptionProviderId } from "../utils/languages";
 
 export interface TranscriptionSettings {
   useLocalWhisper: boolean;
@@ -9,6 +9,8 @@ export interface TranscriptionSettings {
   allowLocalFallback: boolean;
   fallbackWhisperModel: string;
   preferredLanguage: string;
+  transcriptionProvider: TranscriptionProviderId;
+  groqModel: string;
 }
 
 export interface ReasoningSettings {
@@ -17,8 +19,11 @@ export interface ReasoningSettings {
   reasoningProvider: string;
 }
 
+export type HotkeyMode = "toggle" | "push-to-talk";
+
 export interface HotkeySettings {
   dictationKey: string;
+  hotkeyMode: HotkeyMode;
 }
 
 export interface GeneralSettings {
@@ -28,6 +33,7 @@ export interface GeneralSettings {
 export interface ApiKeySettings {
   openaiApiKey: string;
   anthropicApiKey: string;
+  groqApiKey: string;
 }
 
 export function useSettings() {
@@ -85,6 +91,31 @@ export function useSettings() {
     }
   );
 
+  // Transcription provider (local, openai, groq)
+  const [transcriptionProvider, setTranscriptionProvider] = useLocalStorage<TranscriptionProviderId>(
+    "transcriptionProvider",
+    "local",
+    {
+      serialize: String,
+      deserialize: (value) => (value as TranscriptionProviderId) || "local",
+    }
+  );
+
+  // Groq settings
+  const [groqApiKey, setGroqApiKey] = useLocalStorage("groqApiKey", "", {
+    serialize: String,
+    deserialize: String,
+  });
+
+  const [groqModel, setGroqModel] = useLocalStorage(
+    "groqModel",
+    "whisper-large-v3-turbo",
+    {
+      serialize: String,
+      deserialize: String,
+    }
+  );
+
   // Reasoning settings
   const [useReasoningModel, setUseReasoningModel] = useLocalStorage(
     "useReasoningModel",
@@ -125,6 +156,16 @@ export function useSettings() {
     deserialize: String,
   });
 
+  // Hotkey mode (toggle or push-to-talk)
+  const [hotkeyMode, setHotkeyMode] = useLocalStorage<HotkeyMode>(
+    "hotkeyMode",
+    "toggle",
+    {
+      serialize: String,
+      deserialize: (value) => (value === "push-to-talk" ? "push-to-talk" : "toggle"),
+    }
+  );
+
   // General settings
   const [startOnBoot, setStartOnBoot] = useLocalStorage(
     "startOnBoot",
@@ -153,6 +194,10 @@ export function useSettings() {
         setFallbackWhisperModel(settings.fallbackWhisperModel);
       if (settings.preferredLanguage !== undefined)
         setPreferredLanguage(settings.preferredLanguage);
+      if (settings.transcriptionProvider !== undefined)
+        setTranscriptionProvider(settings.transcriptionProvider);
+      if (settings.groqModel !== undefined)
+        setGroqModel(settings.groqModel);
     },
     [
       setUseLocalWhisper,
@@ -161,6 +206,8 @@ export function useSettings() {
       setAllowLocalFallback,
       setFallbackWhisperModel,
       setPreferredLanguage,
+      setTranscriptionProvider,
+      setGroqModel,
     ]
   );
 
@@ -179,8 +226,9 @@ export function useSettings() {
       if (keys.openaiApiKey !== undefined) setOpenaiApiKey(keys.openaiApiKey);
       if (keys.anthropicApiKey !== undefined)
         setAnthropicApiKey(keys.anthropicApiKey);
+      if (keys.groqApiKey !== undefined) setGroqApiKey(keys.groqApiKey);
     },
-    [setOpenaiApiKey, setAnthropicApiKey]
+    [setOpenaiApiKey, setAnthropicApiKey, setGroqApiKey]
   );
 
   const updateGeneralSettings = useCallback(
@@ -197,12 +245,16 @@ export function useSettings() {
     allowLocalFallback,
     fallbackWhisperModel,
     preferredLanguage,
+    transcriptionProvider,
+    groqApiKey,
+    groqModel,
     useReasoningModel,
     reasoningModel,
     reasoningProvider,
     openaiApiKey,
     anthropicApiKey,
     dictationKey,
+    hotkeyMode,
     startOnBoot,
     setUseLocalWhisper,
     setWhisperModel,
@@ -210,6 +262,9 @@ export function useSettings() {
     setAllowLocalFallback,
     setFallbackWhisperModel,
     setPreferredLanguage,
+    setTranscriptionProvider,
+    setGroqApiKey,
+    setGroqModel,
     setUseReasoningModel,
     setReasoningModel,
     setReasoningProvider: (provider: string) => {
@@ -225,6 +280,7 @@ export function useSettings() {
     setOpenaiApiKey,
     setAnthropicApiKey,
     setDictationKey,
+    setHotkeyMode,
     setStartOnBoot,
     updateTranscriptionSettings,
     updateReasoningSettings,

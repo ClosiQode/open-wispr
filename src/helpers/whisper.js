@@ -270,7 +270,13 @@ class WhisperManager {
       };
       debugLogger.logProcessStart(pythonCmd, args, { env: enhancedEnv });
 
-      const whisperProcess = spawn(pythonCmd, args, {
+      // Support pythonCmd that includes arguments (e.g., 'py -3')
+      const pythonParts = pythonCmd.split(' ');
+      const pythonExec = pythonParts[0];
+      const pythonExtraArgs = pythonParts.slice(1);
+      const finalArgs = [...pythonExtraArgs, ...args];
+
+      const whisperProcess = spawn(pythonExec, finalArgs, {
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
         env: enhancedEnv,
@@ -383,37 +389,130 @@ class WhisperManager {
   async findPythonExecutable() {
     // Return cached result if available
     if (this.pythonCmd) {
+      debugLogger.log('Python executable (cached):', this.pythonCmd);
       return this.pythonCmd;
     }
 
-    const possiblePaths = [
-      "python3.11",
-      "python3",
-      "python",
-      "/usr/bin/python3.11",
-      "/usr/bin/python3",
-      "/usr/local/bin/python3.11",
-      "/usr/local/bin/python3",
-      "/opt/homebrew/bin/python3.11",
-      "/opt/homebrew/bin/python3",
-      "/usr/bin/python",
-      "/usr/local/bin/python",
-    ];
+    let possiblePaths = [];
+
+    // Windows-specific Python paths
+    if (process.platform === "win32") {
+      const userProfile = process.env.USERPROFILE || process.env.HOME || "";
+      const localAppData = process.env.LOCALAPPDATA || "";
+      
+      debugLogger.log('Environment variables:', {
+        USERPROFILE: userProfile,
+        LOCALAPPDATA: localAppData,
+        PATH: process.env.PATH
+      });
+      
+      possiblePaths = [
+        "python.exe",
+        "python3.exe",
+        "python3.12.exe",
+        "python3.11.exe",
+        "python3.10.exe",
+        "python3.9.exe",
+        // Microsoft Store Python
+        path.join(localAppData, "Microsoft", "WindowsApps", "python.exe"),
+        path.join(localAppData, "Microsoft", "WindowsApps", "python3.exe"),
+        // Standard Windows Python installations
+        path.join(localAppData, "Programs", "Python", "Python312", "python.exe"),
+        path.join(localAppData, "Programs", "Python", "Python311", "python.exe"),
+        path.join(localAppData, "Programs", "Python", "Python310", "python.exe"),
+        path.join(localAppData, "Programs", "Python", "Python39", "python.exe"),
+        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python312", "python.exe"),
+        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python311", "python.exe"),
+        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python310", "python.exe"),
+        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python39", "python.exe"),
+        // System-wide installations
+        "C:\\Python312\\python.exe",
+        "C:\\Python311\\python.exe",  
+        "C:\\Python310\\python.exe",
+        "C:\\Python39\\python.exe",
+        "C:\\Program Files\\Python312\\python.exe",
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Program Files\\Python310\\python.exe",
+        "C:\\Program Files\\Python39\\python.exe",
+        "C:\\Program Files (x86)\\Python312\\python.exe",
+        "C:\\Program Files (x86)\\Python311\\python.exe",
+        "C:\\Program Files (x86)\\Python310\\python.exe",
+        "C:\\Program Files (x86)\\Python39\\python.exe",
+      ];
+    } else {
+      // macOS and Linux paths
+      possiblePaths = [
+        "python3.11",
+        "python3",
+        "python",
+        "/usr/bin/python3.11",
+        "/usr/bin/python3",
+        "/usr/local/bin/python3.11",
+        "/usr/local/bin/python3",
+        "/opt/homebrew/bin/python3.11",
+        "/opt/homebrew/bin/python3",
+        "/usr/bin/python",
+        "/usr/local/bin/python",
+      ];
+    }
+
+    debugLogger.log('Searching for Python in paths:', possiblePaths);
 
     for (const pythonPath of possiblePaths) {
       try {
+        debugLogger.log(`Testing Python path: ${pythonPath}`);
+        
+        // First check if file exists for absolute paths
+        if (path.isAbsolute(pythonPath)) {
+          if (!fs.existsSync(pythonPath)) {
+            debugLogger.log(`Path does not exist: ${pythonPath}`);
+            continue;
+          }
+          debugLogger.log(`Path exists: ${pythonPath}`);
+        }
+        
         const version = await this.getPythonVersion(pythonPath);
+        debugLogger.log(`Python version for ${pythonPath}:`, version);
+        
         if (this.isPythonVersionSupported(version)) {
+          debugLogger.log(`✅ Found valid Python: ${pythonPath}`);
           this.pythonCmd = pythonPath; // Cache the result
           return pythonPath;
+        } else {
+          debugLogger.log(`❌ Unsupported Python version: ${pythonPath}`, version);
         }
       } catch (error) {
+        debugLogger.log(`❌ Error testing ${pythonPath}:`, error.message);
         continue;
       }
     }
 
+    // Final Windows fallback: try Python Launcher
+    if (process.platform === 'win32') {
+      try {
+        const version = await this.getPythonVersion('py');
+        if (this.isPythonVersionSupported(version)) {
+          debugLogger.log('✅ Using Windows Python Launcher: py -3');
+          this.pythonCmd = 'py';
+          return 'py';
+        }
+      } catch (e) {
+        debugLogger.log('Windows Python Launcher not available:', e.message);
+      }
+      try {
+        const version = await this.getPythonVersion('py -3');
+        if (this.isPythonVersionSupported(version)) {
+          debugLogger.log('✅ Using Windows Python Launcher with -3');
+          this.pythonCmd = 'py -3';
+          return 'py -3';
+        }
+      } catch (e) {
+        debugLogger.log('Windows Python Launcher -3 failed:', e.message);
+      }
+    }
+
     throw new Error(
-      "Python 3.x not found. Use installPython() to install it automatically."
+      "Python 3.x non détecté. Utilisez l'installation automatique (Paramètres > Local Whisper), ou installez Python depuis python.org, puis redémarrez l'application."
     );
   }
 
@@ -444,8 +543,20 @@ class WhisperManager {
 
   async getPythonVersion(pythonPath) {
     return new Promise((resolve) => {
-      const testProcess = spawn(pythonPath, ["--version"]);
+      let testProcess;
       let output = "";
+      
+      // Handle commands with arguments (e.g., 'py -3')
+      const pythonParts = pythonPath.split(' ');
+      const command = pythonParts[0];
+      const args = pythonParts.slice(1).concat(["--version"]);
+      
+      try {
+        testProcess = spawn(command, args);
+      } catch (error) {
+        resolve(null);
+        return;
+      }
       
       testProcess.stdout.on("data", (data) => output += data);
       testProcess.stderr.on("data", (data) => output += data);
@@ -478,7 +589,11 @@ class WhisperManager {
       const pythonCmd = await this.findPythonExecutable();
 
       const result = await new Promise((resolve) => {
-        const checkProcess = spawn(pythonCmd, [
+        const pythonParts = pythonCmd.split(' ');
+        const pythonExec = pythonParts[0];
+        const pythonExtraArgs = pythonParts.slice(1);
+        const checkProcess = spawn(pythonExec, [
+          ...pythonExtraArgs,
           "-c",
           'import whisper; print("OK")',
         ]);
@@ -584,7 +699,11 @@ class WhisperManager {
           FFMPEG_BINARY: ffmpegPath || ""
         };
 
-        const checkProcess = spawn(pythonCmd, [
+        const pythonParts = pythonCmd.split(' ');
+        const pythonExec = pythonParts[0];
+        const pythonExtraArgs = pythonParts.slice(1);
+        const checkProcess = spawn(pythonExec, [
+          ...pythonExtraArgs,
           whisperScriptPath,
           "--mode",
           "check-ffmpeg",
@@ -643,7 +762,10 @@ class WhisperManager {
   }
 
   upgradePip(pythonCmd) {
-    return runCommand(pythonCmd, ["-m", "pip", "install", "--upgrade", "pip"], { timeout: TIMEOUTS.PIP_UPGRADE });
+    const parts = pythonCmd.split(' ');
+    const exec = parts[0];
+    const extra = parts.slice(1);
+    return runCommand(exec, [...extra, "-m", "pip", "install", "--upgrade", "pip"], { timeout: TIMEOUTS.PIP_UPGRADE });
   }
 
   // Removed - now using shared runCommand from utils/process.js
@@ -657,15 +779,19 @@ class WhisperManager {
     } catch (error) {
       debugLogger.log("First pip upgrade attempt failed:", error.message);
       
+      const parts = pythonCmd.split(' ');
+      const exec = parts[0];
+      const extra = parts.slice(1);
+
       // Try user install for pip upgrade
       try {
-        await runCommand(pythonCmd, ["-m", "pip", "install", "--user", "--upgrade", "pip"], { timeout: TIMEOUTS.PIP_UPGRADE });
+        await runCommand(exec, [...extra, "-m", "pip", "install", "--user", "--upgrade", "pip"], { timeout: TIMEOUTS.PIP_UPGRADE });
       } catch (userError) {
         // If pip upgrade fails completely, try to detect if it's the TOML error
         if (error.message.includes("pyproject.toml") || error.message.includes("TomlError")) {
           // Try installing with legacy resolver as a workaround
           try {
-            await runCommand(pythonCmd, ["-m", "pip", "install", "--use-deprecated=legacy-resolver", "--upgrade", "pip"], { timeout: TIMEOUTS.PIP_UPGRADE });
+            await runCommand(exec, [...extra, "-m", "pip", "install", "--use-deprecated=legacy-resolver", "--upgrade", "pip"], { timeout: TIMEOUTS.PIP_UPGRADE });
           } catch (legacyError) {
             throw new Error("Failed to upgrade pip. Please manually run: python -m pip install --upgrade pip");
           }
@@ -678,21 +804,33 @@ class WhisperManager {
     // Try regular install, then user install if permission issues
     // Install OpenAI Whisper
     try {
-      return await runCommand(pythonCmd, ["-m", "pip", "install", "-U", "openai-whisper"], { timeout: TIMEOUTS.DOWNLOAD });
+      const parts = pythonCmd.split(' ');
+      const exec = parts[0];
+      const extra = parts.slice(1);
+      return await runCommand(exec, [...extra, "-m", "pip", "install", "-U", "openai-whisper"], { timeout: TIMEOUTS.DOWNLOAD });
     } catch (error) {
       if (error.message.includes("Permission denied") || error.message.includes("access is denied")) {
         // Retry with user installation
-        return await runCommand(pythonCmd, ["-m", "pip", "install", "--user", "-U", "openai-whisper"], { timeout: TIMEOUTS.DOWNLOAD });
+        const parts = pythonCmd.split(' ');
+        const exec = parts[0];
+        const extra = parts.slice(1);
+        return await runCommand(exec, [...extra, "-m", "pip", "install", "--user", "-U", "openai-whisper"], { timeout: TIMEOUTS.DOWNLOAD });
       }
       
       // If we still get TOML error after pip upgrade, try legacy resolver for whisper
       if (error.message.includes("pyproject.toml") || error.message.includes("TomlError")) {
         // TOML error persists, try legacy resolver
         try {
-          return await runCommand(pythonCmd, ["-m", "pip", "install", "--use-deprecated=legacy-resolver", "-U", "openai-whisper"], { timeout: TIMEOUTS.DOWNLOAD });
+          const parts = pythonCmd.split(' ');
+          const exec = parts[0];
+          const extra = parts.slice(1);
+          return await runCommand(exec, [...extra, "-m", "pip", "install", "--use-deprecated=legacy-resolver", "-U", "openai-whisper"], { timeout: TIMEOUTS.DOWNLOAD });
         } catch (legacyError) {
           // Try user install with legacy resolver
-          return await runCommand(pythonCmd, ["-m", "pip", "install", "--user", "--use-deprecated=legacy-resolver", "-U", "openai-whisper"], { timeout: TIMEOUTS.DOWNLOAD });
+          const parts = pythonCmd.split(' ');
+          const exec = parts[0];
+          const extra = parts.slice(1);
+          return await runCommand(exec, [...extra, "-m", "pip", "install", "--user", "--use-deprecated=legacy-resolver", "-U", "openai-whisper"], { timeout: TIMEOUTS.DOWNLOAD });
         }
       }
       
@@ -722,7 +860,10 @@ class WhisperManager {
       ];
 
       return new Promise((resolve, reject) => {
-        const downloadProcess = spawn(pythonCmd, args);
+        const pythonParts = pythonCmd.split(' ');
+        const pythonExec = pythonParts[0];
+        const pythonExtraArgs = pythonParts.slice(1);
+        const downloadProcess = spawn(pythonExec, [...pythonExtraArgs, ...args]);
         this.currentDownloadProcess = downloadProcess; // Store for potential cancellation
 
         let stdout = "";
@@ -839,7 +980,10 @@ class WhisperManager {
       const args = [whisperScriptPath, "--mode", "check", "--model", modelName];
 
       return new Promise((resolve, reject) => {
-        const checkProcess = spawn(pythonCmd, args);
+        const pythonParts = pythonCmd.split(' ');
+        const pythonExec = pythonParts[0];
+        const pythonExtraArgs = pythonParts.slice(1);
+        const checkProcess = spawn(pythonExec, [...pythonExtraArgs, ...args]);
 
         let stdout = "";
         let stderr = "";
@@ -888,7 +1032,10 @@ class WhisperManager {
       const args = [whisperScriptPath, "--mode", "list"];
 
       return new Promise((resolve, reject) => {
-        const listProcess = spawn(pythonCmd, args);
+        const pythonParts = pythonCmd.split(' ');
+        const pythonExec = pythonParts[0];
+        const pythonExtraArgs = pythonParts.slice(1);
+        const listProcess = spawn(pythonExec, [...pythonExtraArgs, ...args]);
 
         let stdout = "";
         let stderr = "";
@@ -941,7 +1088,10 @@ class WhisperManager {
       ];
 
       return new Promise((resolve, reject) => {
-        const deleteProcess = spawn(pythonCmd, args);
+        const pythonParts = pythonCmd.split(' ');
+        const pythonExec = pythonParts[0];
+        const pythonExtraArgs = pythonParts.slice(1);
+        const deleteProcess = spawn(pythonExec, [...pythonExtraArgs, ...args]);
 
         let stdout = "";
         let stderr = "";

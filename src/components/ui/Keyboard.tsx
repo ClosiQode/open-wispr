@@ -50,8 +50,9 @@ const Key: React.FC<KeyProps> = ({ keyValue, isSelected, onClick, width = "w-12"
 };
 
 export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps) {
-  const functionKeys = ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'];
-  
+  const functionKeysRow1 = ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'];
+  const functionKeysRow2 = ['F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23', 'F24'];
+
   const numberRow = ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
   
   const qwertyRow = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '[', ']', '\\'];
@@ -66,15 +67,28 @@ export default function Keyboard({ selectedKey, setSelectedKey }: KeyboardProps)
 
   return (
     <div className="p-6 bg-gradient-to-b from-gray-100 to-gray-200 rounded-2xl shadow-2xl border border-gray-300">
-      {/* Function Keys Row */}
-      <div className="flex justify-center gap-2 mb-4">
-        {functionKeys.map((key) => (
+      {/* Function Keys Row 1 (Esc, F1-F12) */}
+      <div className="flex justify-center gap-1 mb-2">
+        {functionKeysRow1.map((key) => (
           <Key
             key={key}
             keyValue={key}
             isSelected={selectedKey === key}
             onClick={() => handleKeyClick(key)}
-            width={key === 'Esc' ? 'w-14' : 'w-12'}
+            width={key === 'Esc' ? 'w-12' : 'w-10'}
+          />
+        ))}
+      </div>
+
+      {/* Function Keys Row 2 (F13-F24) */}
+      <div className="flex justify-center gap-1 mb-4">
+        {functionKeysRow2.map((key) => (
+          <Key
+            key={key}
+            keyValue={key}
+            isSelected={selectedKey === key}
+            onClick={() => handleKeyClick(key)}
+            width="w-10"
           />
         ))}
       </div>

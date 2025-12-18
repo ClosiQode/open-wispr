@@ -1,5 +1,6 @@
 import TextCleanup from "../utils/textCleanup";
 import ReasoningService from "../services/ReasoningService";
+import { applyDictionaryReplacements } from "../hooks/useDictionary";
 
 
 class AudioManager {
@@ -94,17 +95,26 @@ class AudioManager {
 
   async processAudio(audioBlob) {
     try {
-      // Get user preferences
-      const useLocalWhisper =
-        localStorage.getItem("useLocalWhisper") === "true";
+      // Get user preferences - migrate old setting if needed
+      this.migrateTranscriptionSettings();
+
+      const transcriptionProvider = localStorage.getItem("transcriptionProvider") || "local";
       const whisperModel = localStorage.getItem("whisperModel") || "base";
-      
+
 
       let result;
-      if (useLocalWhisper) {
-        result = await this.processWithLocalWhisper(audioBlob, whisperModel);
-      } else {
-        result = await this.processWithOpenAIAPI(audioBlob);
+      switch (transcriptionProvider) {
+        case "local":
+          result = await this.processWithLocalWhisper(audioBlob, whisperModel);
+          break;
+        case "openai":
+          result = await this.processWithOpenAIAPI(audioBlob);
+          break;
+        case "groq":
+          result = await this.processWithGroqAPI(audioBlob);
+          break;
+        default:
+          result = await this.processWithLocalWhisper(audioBlob, whisperModel);
       }
       this.onTranscriptionComplete?.(result);
     } catch (error) {
@@ -122,7 +132,7 @@ class AudioManager {
   }
 
   static cleanTranscription(text, options = {}) {
-    return TextCleanup.cleanTranscription(text, {
+    let cleaned = TextCleanup.cleanTranscription(text, {
       removeArtifacts: true,
       normalizeSpaces: true,
       fixPunctuation: true,
@@ -132,6 +142,13 @@ class AudioManager {
       addPeriod: false,
       ...options,
     });
+
+    // Apply custom dictionary replacements
+    if (cleaned) {
+      cleaned = applyDictionaryReplacements(cleaned);
+    }
+
+    return cleaned;
   }
 
   static cleanTranscriptionForAPI(text) {
@@ -503,6 +520,128 @@ class AudioManager {
       }
 
       throw error;
+    }
+  }
+
+  async processWithGroqAPI(audioBlob) {
+    try {
+      const apiKey = localStorage.getItem("groqApiKey");
+      if (!apiKey || apiKey.trim() === "") {
+        throw new Error(
+          "Clé API Groq non configurée. Veuillez la configurer dans les paramètres."
+        );
+      }
+
+      const model = localStorage.getItem("groqModel") || "whisper-large-v3-turbo";
+      const language = localStorage.getItem("preferredLanguage");
+
+      // Optimize audio for upload (reuse existing method)
+      const optimizedAudio = await this.optimizeAudio(audioBlob);
+
+      const formData = new FormData();
+      formData.append("file", optimizedAudio, "audio.wav");
+      formData.append("model", model);
+      if (language && language !== "auto") {
+        formData.append("language", language);
+      }
+      formData.append("response_format", "json");
+
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/audio/transcriptions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Groq API Error: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      const rawText = AudioManager.cleanTranscriptionForAPI(result.text);
+
+      if (rawText) {
+        // Apply reasoning model if enabled AND agent is referenced
+        const useReasoning =
+          localStorage.getItem("useReasoningModel") === "true";
+
+        if (useReasoning) {
+          // Check if agent name is present in the text
+          const { getAgentName } = await import("../utils/agentName.ts");
+          const agentName = getAgentName();
+          const hasAgentReference = agentName &&
+            (rawText.toLowerCase().includes(`hey ${agentName.toLowerCase()}`) ||
+             rawText.toLowerCase().includes(agentName.toLowerCase()));
+
+          if (hasAgentReference) {
+            const reasonedText = await this.processWithReasoningModel(rawText);
+            return {
+              success: true,
+              text: reasonedText,
+              source: "groq-reasoned",
+            };
+          }
+        }
+
+        // No agent detected or useReasoning disabled → local cleaning only
+        const finalText = AudioManager.cleanTranscription(rawText);
+        return { success: true, text: finalText, source: "groq" };
+      } else {
+        throw new Error("No text transcribed");
+      }
+    } catch (error) {
+      // Try fallback to Local Whisper if enabled
+      const allowLocalFallback =
+        localStorage.getItem("allowLocalFallback") === "true";
+
+      if (allowLocalFallback) {
+        const fallbackModel =
+          localStorage.getItem("fallbackWhisperModel") || "base";
+        try {
+          const arrayBuffer = await audioBlob.arrayBuffer();
+          const language = localStorage.getItem("preferredLanguage");
+          const options = { model: fallbackModel };
+          if (language && language !== "auto") {
+            options.language = language;
+          }
+
+          const result = await window.electronAPI.transcribeLocalWhisper(
+            arrayBuffer,
+            options
+          );
+
+          if (result.success && result.text) {
+            let text = AudioManager.cleanTranscription(result.text);
+            if (text) {
+              return { success: true, text, source: "local-fallback" };
+            }
+          }
+          throw error;
+        } catch (fallbackError) {
+          throw new Error(
+            `Groq API failed: ${error.message}. Local fallback also failed: ${fallbackError.message}`
+          );
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  // Migrate old useLocalWhisper setting to new transcriptionProvider
+  migrateTranscriptionSettings() {
+    const oldSetting = localStorage.getItem("useLocalWhisper");
+    const newSetting = localStorage.getItem("transcriptionProvider");
+
+    // Only migrate if old setting exists and new setting doesn't
+    if (oldSetting !== null && newSetting === null) {
+      const provider = oldSetting === "true" ? "local" : "openai";
+      localStorage.setItem("transcriptionProvider", provider);
     }
   }
 

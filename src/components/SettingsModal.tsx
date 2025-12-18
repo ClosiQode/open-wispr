@@ -1,5 +1,5 @@
 import React from "react";
-import { Settings, Mic, Brain, User, Sparkles } from "lucide-react";
+import { Settings, Mic, Brain, User, Sparkles, Book } from "lucide-react";
 import SidebarModal, { SidebarItem } from "./ui/SidebarModal";
 import SettingsPage, { SettingsSectionType } from "./SettingsPage";
 
@@ -15,6 +15,7 @@ export default function SettingsModal({
   const sidebarItems: SidebarItem<SettingsSectionType>[] = [
     { id: "general", label: "Général", icon: Settings },
     { id: "transcription", label: "Mode de transcription", icon: Mic },
+    { id: "dictionary", label: "Dictionnaire", icon: Book },
     { id: "aiModels", label: "Modèles IA", icon: Brain },
     { id: "agentConfig", label: "Configuration de l'agent", icon: User },
     { id: "prompts", label: "Invites IA", icon: Sparkles },
