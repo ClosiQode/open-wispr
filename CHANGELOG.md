@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2025-12-18
+
+### Added
+- **Push-to-Talk Mode**: New recording mode where you hold the key to record
+  - Hold the hotkey to start recording, release to stop and transcribe
+  - Toggle mode still available (press once to start, press again to stop)
+  - Mode selector in settings with intuitive UI
+  - Uses native keyboard hooks via `uiohook-napi` for reliable key detection
+- **Extended Function Keys Support (F13-F24)**: Full support for extended function keys
+  - Useful for dedicated macro keyboards and Stream Deck
+  - Works with both Toggle and Push-to-Talk modes
+- **Groq Transcription Provider**: Ultra-fast cloud transcription option
+  - 216x real-time transcription speed
+  - Two models available: Whisper Large v3 Turbo (fast) and Whisper Large v3 (precise)
+  - Requires Groq API key (free tier available)
+- **Custom Dictionary**: Automatic word replacement for better transcription
+  - Define custom replacements (e.g., "open AI" -> "OpenAI")
+  - Supports case-insensitive matching
+  - Easy-to-use interface in settings
+- **Three Transcription Providers**: Choose between Local, OpenAI, or Groq
+  - Local: Privacy-focused, runs on your machine
+  - OpenAI: Cloud-based, reliable
+  - Groq: Ultra-fast cloud transcription
+
+### Changed
+- **Transcription Settings UI**: Redesigned provider selector with 3-button layout
+- **Hotkey System**: Improved architecture to support both toggle and push-to-talk modes
+
+### Technical Details
+- Added `uiohook-napi` for native keyboard hook support (push-to-talk)
+- Implemented keycode mapping for extended function keys (F13-F24)
+- Added Groq API integration in AudioManager
+- Settings migration for backward compatibility with `useLocalWhisper`
+- New `hotkeyMode` setting with "toggle" and "push-to-talk" options
+
 ## [1.0.2] - 2024-12-19
 
 ### Added
