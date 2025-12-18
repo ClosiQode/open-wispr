@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2025-12-18
+
+### Added
+- **GPT-5 Mini Support**: Full support for OpenAI's GPT-5 Mini model
+  - Uses the new Responses API (`/v1/responses`) instead of Chat Completions
+  - Automatic API detection based on model selection
+  - Reasoning effort parameter for enhanced responses
+- **Updated AI Models**:
+  - OpenAI: GPT-5 Mini (Responses API), GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo
+  - Anthropic: Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus
+
+### Changed
+- **Static Model List**: Removed dynamic model fetching for simplicity and reliability
+- **Improved Installer**: Added elevation support and auto-run after install
+
+### Technical Details
+- ReasoningService now supports both Chat Completions and Responses API
+- `getModelApiType()` helper to determine correct API endpoint
+- Simplified `useAIModels` hook with static model list
+
 ## [1.0.14] - 2025-12-18
 
 ### Added

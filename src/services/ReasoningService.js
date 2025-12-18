@@ -1,5 +1,6 @@
 import { getModelProvider } from "../utils/languages.ts";
 import { getAgentName } from "../utils/agentName.ts";
+import { getModelApiType } from "../hooks/useAIModels.ts";
 
 // Prompts par défaut (utilisés si aucun prompt personnalisé n'est sauvegardé)
 export const DEFAULT_PROMPTS = {
@@ -159,6 +160,59 @@ class ReasoningService {
       "{{text}}",
       text
     );
+
+    // Déterminer le type d'API à utiliser (GPT-5 utilise Responses API)
+    const apiType = getModelApiType(model);
+
+    if (apiType === "responses") {
+      return await this.processWithOpenAIResponses(prompt, model, apiKey);
+    } else {
+      return await this.processWithOpenAIChat(prompt, model, apiKey, text);
+    }
+  }
+
+  // GPT-5 models use the Responses API
+  async processWithOpenAIResponses(prompt, model, apiKey) {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        reasoning: { effort: "medium" },
+        input: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenAI Responses API Error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    let reasonedText = result.output_text?.trim();
+
+    if (!reasonedText) {
+      throw new Error("Empty response from OpenAI Responses API");
+    }
+
+    // Supprimer les guillemets indésirables au début et à la fin
+    if (reasonedText.startsWith('"') && reasonedText.endsWith('"')) {
+      reasonedText = reasonedText.slice(1, -1);
+    }
+
+    return reasonedText;
+  }
+
+  // GPT-4 and earlier models use Chat Completions API
+  async processWithOpenAIChat(prompt, model, apiKey, text) {
     const maxTokens = Math.max(100, text.length * 2);
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {

@@ -106,7 +106,7 @@ export default function SettingsPage({
   const { pasteFromClipboardWithFallback } = useClipboard(showAlertDialog);
   const { agentName, setAgentName } = useAgentName();
   const dictionaryHook = useDictionary();
-  const { openaiModels, anthropicModels, loading: modelsLoading, refreshModels } = useAIModels();
+  const { openaiModels, anthropicModels } = useAIModels();
 
   // États pour le dictionnaire
   const [newDictFrom, setNewDictFrom] = useState("");
@@ -141,13 +141,6 @@ export default function SettingsPage({
       }
     }
   }, [selectedKeys, dictationKey, setDictationKey]);
-
-  // Charger les modèles IA quand la clé API change
-  useEffect(() => {
-    if (openaiApiKey) {
-      refreshModels(openaiApiKey);
-    }
-  }, [openaiApiKey, refreshModels]);
 
   // Synchroniser l'état du démarrage automatique au chargement
   useEffect(() => {
@@ -1480,17 +1473,7 @@ export default function SettingsPage({
                 </div>
 
                 <div className="space-y-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-indigo-900">Modèle IA</h4>
-                    <button
-                      onClick={() => refreshModels(openaiApiKey, true)}
-                      disabled={modelsLoading}
-                      className="p-1.5 rounded-md hover:bg-indigo-100 text-indigo-600 disabled:opacity-50 transition-colors"
-                      title="Actualiser la liste des modèles"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${modelsLoading ? "animate-spin" : ""}`} />
-                    </button>
-                  </div>
+                  <h4 className="font-medium text-indigo-900">Modèle IA</h4>
                   <select
                     value={reasoningModel}
                     onChange={(e) => setReasoningModel(e.target.value)}
@@ -1508,7 +1491,7 @@ export default function SettingsPage({
                     ))}
                   </select>
                   <p className="text-xs text-indigo-600">
-                    {modelsLoading ? "Chargement des modèles..." : "Différents modèles offrent des niveaux variés de qualité et de vitesse"}
+                    Différents modèles offrent des niveaux variés de qualité et de vitesse
                   </p>
                 </div>
 
