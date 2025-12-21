@@ -9,7 +9,6 @@ import { useSettings } from "../hooks/useSettings";
 import { useDialogs } from "../hooks/useDialogs";
 import { useAgentName } from "../utils/agentName";
 import { useWhisper } from "../hooks/useWhisper";
-import { usePython } from "../hooks/usePython";
 import { usePermissions } from "../hooks/usePermissions";
 import { useClipboard } from "../hooks/useClipboard";
 import { useDictionary, DictionaryEntry } from "../hooks/useDictionary";
@@ -103,7 +102,6 @@ export default function SettingsPage({
   }>({});
 
   const whisperHook = useWhisper(showAlertDialog);
-  const pythonHook = usePython(showAlertDialog);
   const permissionsHook = usePermissions(showAlertDialog);
   const { pasteFromClipboardWithFallback } = useClipboard(showAlertDialog);
   const { agentName, setAgentName } = useAgentName();
@@ -184,10 +182,6 @@ export default function SettingsPage({
         subscribeToUpdates();
       }
 
-      // Check whisper after initial render
-      if (mounted) {
-        whisperHook.checkWhisperInstallation();
-      }
     }, 100);
 
     return () => {
@@ -202,7 +196,8 @@ export default function SettingsPage({
         window.electronAPI.removeAllListeners?.("update-download-progress");
       }
     };
-  }, [whisperHook]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const subscribeToUpdates = () => {
     if (window.electronAPI) {
@@ -1068,89 +1063,13 @@ export default function SettingsPage({
             {transcriptionProvider === "local" && (
               <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
                 <h4 className="font-medium text-purple-900">
-                  Configuration Local Whisper
+                  Modèle Whisper local
                 </h4>
-
-                {/* Étape 1: Vérifier Python */}
-                {!pythonHook.pythonInstalled && !pythonHook.isChecking && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p className="text-sm text-amber-800 mb-3">
-                      <span className="font-medium">Python requis :</span> Python n'est pas détecté sur votre système.
-                      Il est nécessaire pour exécuter Whisper localement.
-                    </p>
-                    <Button
-                      onClick={pythonHook.installPython}
-                      disabled={pythonHook.installingPython}
-                      className="bg-amber-600 hover:bg-amber-700 text-white"
-                    >
-                      {pythonHook.installingPython ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                          {pythonHook.installProgress || "Installation..."}
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2" />
-                          Installer Python automatiquement
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                {pythonHook.isChecking && (
-                  <div className="flex items-center gap-2 text-purple-700">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Vérification de Python...</span>
-                  </div>
-                )}
-
-                {/* Étape 2: Vérifier Whisper */}
-                {pythonHook.pythonInstalled && !whisperHook.whisperInstalled && !whisperHook.checkingWhisper && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800 mb-3">
-                      <span className="font-medium">✓ Python détecté.</span> Maintenant, installez le module Whisper.
-                    </p>
-                    <Button
-                      onClick={whisperHook.installWhisper}
-                      disabled={whisperHook.installingWhisper}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      {whisperHook.installingWhisper ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                          {whisperHook.installProgress || "Installation..."}
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2" />
-                          Installer OpenAI Whisper
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                {whisperHook.checkingWhisper && (
-                  <div className="flex items-center gap-2 text-purple-700">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Vérification de Whisper...</span>
-                  </div>
-                )}
-
-                {/* Étape 3: Afficher le picker de modèles */}
-                {whisperHook.whisperInstalled && (
-                  <>
-                    <div className="flex items-center gap-2 text-green-700 mb-2">
-                      <span className="text-sm font-medium">✓ Python et Whisper installés</span>
-                    </div>
-                    <WhisperModelPicker
-                      selectedModel={whisperModel}
-                      onModelSelect={setWhisperModel}
-                      variant="settings"
-                    />
-                  </>
-                )}
+                <WhisperModelPicker
+                  selectedModel={whisperModel}
+                  onModelSelect={setWhisperModel}
+                  variant="settings"
+                />
               </div>
             )}
 
