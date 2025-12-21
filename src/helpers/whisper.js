@@ -411,8 +411,11 @@ class WhisperManager {
       });
 
       // Build comprehensive list of Python paths
-      // Priority: User installations first, then system-wide
+      // Priority: PATH first (fastest if Python is properly installed), then specific paths
       possiblePaths = [
+        // PATH-based (try first - works if Python is in PATH)
+        "python.exe",
+        "python3.exe",
         // User Python installations (most common on Windows)
         path.join(homeDir, "AppData", "Local", "Programs", "Python", "Python313", "python.exe"),
         path.join(homeDir, "AppData", "Local", "Programs", "Python", "Python312", "python.exe"),
@@ -425,12 +428,6 @@ class WhisperManager {
         path.join(localAppData, "Programs", "Python", "Python311", "python.exe"),
         path.join(localAppData, "Programs", "Python", "Python310", "python.exe"),
         path.join(localAppData, "Programs", "Python", "Python39", "python.exe"),
-        // userProfile variable (backup)
-        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python313", "python.exe"),
-        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python312", "python.exe"),
-        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python311", "python.exe"),
-        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python310", "python.exe"),
-        path.join(userProfile, "AppData", "Local", "Programs", "Python", "Python39", "python.exe"),
         // Microsoft Store Python
         path.join(localAppData, "Microsoft", "WindowsApps", "python.exe"),
         path.join(localAppData, "Microsoft", "WindowsApps", "python3.exe"),
@@ -447,19 +444,6 @@ class WhisperManager {
         "C:\\Program Files\\Python311\\python.exe",
         "C:\\Program Files\\Python310\\python.exe",
         "C:\\Program Files\\Python39\\python.exe",
-        "C:\\Program Files (x86)\\Python313\\python.exe",
-        "C:\\Program Files (x86)\\Python312\\python.exe",
-        "C:\\Program Files (x86)\\Python311\\python.exe",
-        "C:\\Program Files (x86)\\Python310\\python.exe",
-        "C:\\Program Files (x86)\\Python39\\python.exe",
-        // PATH-based (last resort, may not work in GUI mode)
-        "python.exe",
-        "python3.exe",
-        "python3.13.exe",
-        "python3.12.exe",
-        "python3.11.exe",
-        "python3.10.exe",
-        "python3.9.exe",
       ];
     } else {
       // macOS and Linux paths
