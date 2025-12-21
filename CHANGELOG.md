@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] - 2025-12-21
+
+### Fixed
+- **Python Detection**: Improved Python detection on Windows for GUI-launched apps
+  - Now uses `os.homedir()` which is more reliable than environment variables
+  - Environment variables like `LOCALAPPDATA` may be empty when app is launched from Start Menu
+  - Added support for Python 3.13
+  - Prioritized user installations over PATH-based detection for reliability
+
+### Technical Details
+- `findPythonExecutable()` now builds paths using `os.homedir()` as the base
+- Falls back to environment variables only as backup
+- PATH-based detection moved to last resort
+
 ## [1.0.15] - 2025-12-18
 
 ### Added
