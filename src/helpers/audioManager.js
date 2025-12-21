@@ -214,7 +214,9 @@ class AudioManager {
              rawText.toLowerCase().includes(agentName.toLowerCase()));
           
           if (hasAgentReference) {
-            const reasonedText = await this.processWithReasoningModel(rawText);
+            let reasonedText = await this.processWithReasoningModel(rawText);
+            // Apply dictionary replacements after reasoning
+            reasonedText = applyDictionaryReplacements(reasonedText);
             return {
               success: true,
               text: reasonedText,
@@ -222,7 +224,7 @@ class AudioManager {
             };
           }
         }
-        
+
         // No agent detected or useReasoning disabled → local cleaning only
         let text = AudioManager.cleanTranscription(rawText);
         if (text) {
@@ -476,7 +478,9 @@ class AudioManager {
              rawText.toLowerCase().includes(agentName.toLowerCase()));
           
           if (hasAgentReference) {
-            const reasonedText = await this.processWithReasoningModel(rawText);
+            let reasonedText = await this.processWithReasoningModel(rawText);
+            // Apply dictionary replacements after reasoning
+            reasonedText = applyDictionaryReplacements(reasonedText);
             return {
               success: true,
               text: reasonedText,
@@ -484,7 +488,7 @@ class AudioManager {
             };
           }
         }
-        
+
         // No agent detected or useReasoning disabled → local cleaning only
         const finalText = AudioManager.cleanTranscription(rawText);
         return { success: true, text: finalText, source: "openai" };
@@ -597,7 +601,9 @@ class AudioManager {
              rawText.toLowerCase().includes(agentName.toLowerCase()));
 
           if (hasAgentReference) {
-            const reasonedText = await this.processWithReasoningModel(rawText);
+            let reasonedText = await this.processWithReasoningModel(rawText);
+            // Apply dictionary replacements after reasoning
+            reasonedText = applyDictionaryReplacements(reasonedText);
             return {
               success: true,
               text: reasonedText,

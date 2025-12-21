@@ -96,7 +96,16 @@ export const getVocabularyPrompt = (): string | null => {
 export const applyDictionaryReplacements = (text: string): string => {
   const entries = loadDictionary().filter((e) => e.enabled);
 
-  if (entries.length === 0) return text;
+  console.log("[Dictionary] Applying replacements:", {
+    inputText: text,
+    enabledEntries: entries.length,
+    entries: entries.map(e => `${e.from} → ${e.to}`)
+  });
+
+  if (entries.length === 0) {
+    console.log("[Dictionary] No enabled entries, returning original text");
+    return text;
+  }
 
   let result = text;
 
@@ -106,6 +115,7 @@ export const applyDictionaryReplacements = (text: string): string => {
     const escapedFrom = entry.from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(`\\b${escapedFrom}\\b`, "gi");
 
+    const before = result;
     result = result.replace(regex, (match) => {
       // Preserve original case pattern if possible
       if (match === match.toUpperCase()) {
@@ -117,8 +127,12 @@ export const applyDictionaryReplacements = (text: string): string => {
       }
       return entry.to;
     });
+    if (before !== result) {
+      console.log(`[Dictionary] Replaced "${entry.from}" → "${entry.to}"`);
+    }
   }
 
+  console.log("[Dictionary] Final result:", result);
   return result;
 };
 
