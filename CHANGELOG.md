@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.23] - 2025-12-21
+
+### Added
+- **Transcription Statistics**: Dashboard with global statistics
+  - Total transcriptions count
+  - Total words transcribed
+  - Number of active days
+  - Average words per minute (calculated from recordings with duration)
+  - Total dictation time
+- **Per-Transcription Stats**: Each transcription now shows
+  - Word count
+  - Words per minute (for new transcriptions with duration tracking)
+- **Recording Duration Tracking**: Recording duration is now saved with each transcription
+
+### Technical Details
+- Database migration adds `duration_seconds` column
+- New `getStatistics()` API for aggregate statistics
+- `saveTranscription()` now accepts optional duration parameter
+- Recording duration tracked in App.jsx and passed to database
+
 ## [1.0.22] - 2025-12-21
 
 ### Added

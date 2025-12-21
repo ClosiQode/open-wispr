@@ -7,13 +7,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onToggleDictation: (callback) => ipcRenderer.on("toggle-dictation", (event, data) => callback(data)),
 
   // Database functions
-  saveTranscription: (text) =>
-    ipcRenderer.invoke("db-save-transcription", text),
+  saveTranscription: (text, durationSeconds = null) =>
+    ipcRenderer.invoke("db-save-transcription", text, durationSeconds),
   getTranscriptions: (limit) =>
     ipcRenderer.invoke("db-get-transcriptions", limit),
   clearTranscriptions: () => ipcRenderer.invoke("db-clear-transcriptions"),
   deleteTranscription: (id) =>
     ipcRenderer.invoke("db-delete-transcription", id),
+  getStatistics: () => ipcRenderer.invoke("db-get-statistics"),
 
   // Environment variables
   getOpenAIKey: () => ipcRenderer.invoke("get-openai-key"),

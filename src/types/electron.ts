@@ -3,6 +3,18 @@ export interface TranscriptionItem {
   text: string;
   timestamp: string;
   created_at: string;
+  duration_seconds?: number | null;
+}
+
+export interface TranscriptionStatistics {
+  totalTranscriptions: number;
+  totalWords: number;
+  daysUsed: number;
+  totalDurationSeconds: number;
+  averageWpm: number;
+  transcriptionsWithDuration: number;
+  firstTranscription: string | null;
+  lastTranscription: string | null;
 }
 
 export interface WhisperInstallResult {
@@ -121,11 +133,13 @@ declare global {
 
       // Database operations
       saveTranscription: (
-        text: string
+        text: string,
+        durationSeconds?: number | null
       ) => Promise<{ id: number; success: boolean }>;
       getTranscriptions: (limit?: number) => Promise<TranscriptionItem[]>;
       clearTranscriptions: () => Promise<{ cleared: number; success: boolean }>;
       deleteTranscription: (id: number) => Promise<{ success: boolean }>;
+      getStatistics: () => Promise<TranscriptionStatistics>;
 
       // API key management
       getOpenAIKey: () => Promise<string>;

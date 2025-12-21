@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Trash2, RefreshCw, Settings, FileText, Mic } from "lucide-react";
+import { Trash2, RefreshCw, Settings, FileText, Mic, BarChart3, Calendar, Clock, Type } from "lucide-react";
 import SettingsModal from "./SettingsModal";
 import TitleBar from "./TitleBar";
 import SupportDropdown from "./ui/SupportDropdown";
@@ -10,12 +10,13 @@ import { ConfirmDialog, AlertDialog } from "./ui/dialog";
 import { useDialogs } from "../hooks/useDialogs";
 import { useHotkey } from "../hooks/useHotkey";
 import { useToast } from "./ui/Toast";
-import type { TranscriptionItem as TranscriptionItemType } from "../types/electron";
+import type { TranscriptionItem as TranscriptionItemType, TranscriptionStatistics } from "../types/electron";
 
 export default function ControlPanel() {
   const [history, setHistory] = useState<TranscriptionItemType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [statistics, setStatistics] = useState<TranscriptionStatistics | null>(null);
   const { hotkey } = useHotkey();
   const { toast } = useToast();
   const [updateStatus, setUpdateStatus] = useState({
@@ -34,8 +35,9 @@ export default function ControlPanel() {
   } = useDialogs();
 
   useEffect(() => {
-    // Load transcription history from database
+    // Load transcription history and statistics from database
     loadTranscriptions();
+    loadStatistics();
 
     // Initialize update status
     const initializeUpdateStatus = async () => {
@@ -99,6 +101,15 @@ export default function ControlPanel() {
     }
   };
 
+  const loadStatistics = async () => {
+    try {
+      const stats = await window.electronAPI.getStatistics();
+      setStatistics(stats);
+    } catch (error) {
+      console.error("Error loading statistics:", error);
+    }
+  };
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -126,6 +137,7 @@ export default function ControlPanel() {
         try {
           const result = await window.electronAPI.clearTranscriptions();
           setHistory([]);
+          await loadStatistics();
           showAlertDialog({
             title: "Historique effacé",
             description: `${result.cleared} transcriptions ont été supprimées avec succès de vos archives.`,
@@ -152,6 +164,7 @@ export default function ControlPanel() {
           if (result.success) {
             // Remove from local state
             setHistory((prev) => prev.filter((item) => item.id !== id));
+            await loadStatistics();
           } else {
             showAlertDialog({
               title: "Échec de la suppression",
@@ -172,6 +185,7 @@ export default function ControlPanel() {
 
   const refreshHistory = async () => {
     await loadTranscriptions();
+    await loadStatistics();
   };
 
   return (
@@ -221,6 +235,70 @@ export default function ControlPanel() {
       {/* Main content */}
       <div className="p-6">
         <div className="space-y-6 max-w-4xl mx-auto">
+          {/* Statistics Card */}
+          {statistics && statistics.totalTranscriptions > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BarChart3 size={18} className="text-indigo-600" />
+                  Statistiques
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-indigo-50 to-white rounded-lg p-4 border border-indigo-100">
+                    <div className="flex items-center gap-2 text-indigo-600 mb-1">
+                      <FileText size={14} />
+                      <span className="text-xs font-medium uppercase tracking-wide">Transcriptions</span>
+                    </div>
+                    <div className="text-2xl font-bold text-neutral-900">
+                      {statistics.totalTranscriptions}
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-emerald-50 to-white rounded-lg p-4 border border-emerald-100">
+                    <div className="flex items-center gap-2 text-emerald-600 mb-1">
+                      <Type size={14} />
+                      <span className="text-xs font-medium uppercase tracking-wide">Mots</span>
+                    </div>
+                    <div className="text-2xl font-bold text-neutral-900">
+                      {statistics.totalWords.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-amber-50 to-white rounded-lg p-4 border border-amber-100">
+                    <div className="flex items-center gap-2 text-amber-600 mb-1">
+                      <Calendar size={14} />
+                      <span className="text-xs font-medium uppercase tracking-wide">Jours actifs</span>
+                    </div>
+                    <div className="text-2xl font-bold text-neutral-900">
+                      {statistics.daysUsed}
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg p-4 border border-purple-100">
+                    <div className="flex items-center gap-2 text-purple-600 mb-1">
+                      <Clock size={14} />
+                      <span className="text-xs font-medium uppercase tracking-wide">Mots/min</span>
+                    </div>
+                    <div className="text-2xl font-bold text-neutral-900">
+                      {statistics.averageWpm > 0 ? statistics.averageWpm : "—"}
+                    </div>
+                    {statistics.transcriptionsWithDuration > 0 && (
+                      <div className="text-xs text-neutral-500 mt-1">
+                        Basé sur {statistics.transcriptionsWithDuration} transcription{statistics.transcriptionsWithDuration > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {statistics.totalDurationSeconds > 0 && (
+                  <div className="mt-3 pt-3 border-t border-neutral-100">
+                    <div className="text-xs text-neutral-500 text-center">
+                      Temps total dicté : {Math.floor(statistics.totalDurationSeconds / 60)} min {Math.round(statistics.totalDurationSeconds % 60)} sec
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">

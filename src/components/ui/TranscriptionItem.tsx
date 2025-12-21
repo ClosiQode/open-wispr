@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "./button";
-import { Copy, Trash2 } from "lucide-react";
+import { Copy, Trash2, Type, Clock } from "lucide-react";
 import type { TranscriptionItem as TranscriptionItemType } from "../../types/electron";
 
 interface TranscriptionItemProps {
@@ -11,6 +11,18 @@ interface TranscriptionItemProps {
   onDelete: (id: number) => void;
 }
 
+// Helper function to count words
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(w => w.length > 0).length;
+}
+
+// Helper function to calculate WPM
+function calculateWpm(wordCount: number, durationSeconds: number | null | undefined): number | null {
+  if (!durationSeconds || durationSeconds <= 0) return null;
+  const minutes = durationSeconds / 60;
+  return Math.round(wordCount / minutes);
+}
+
 export default function TranscriptionItem({
   item,
   index,
@@ -18,13 +30,16 @@ export default function TranscriptionItem({
   onCopy,
   onDelete,
 }: TranscriptionItemProps) {
+  const wordCount = countWords(item.text);
+  const wpm = calculateWpm(wordCount, item.duration_seconds);
+
   return (
     <div className="relative bg-gradient-to-b from-blue-50/30 to-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
       <div className="p-6 pl-16" style={{ paddingTop: "8px" }}>
         <div className="flex items-start justify-between">
           <div className="flex-1 mr-3">
             <div
-              className="flex items-center gap-2 mb-1"
+              className="flex items-center gap-2 mb-1 flex-wrap"
               style={{ marginTop: "2px", lineHeight: "24px" }}
             >
               <span className="text-indigo-600 text-xs font-medium">
@@ -32,13 +47,27 @@ export default function TranscriptionItem({
               </span>
               <div className="w-px h-3 bg-neutral-300" />
               <span className="text-xs text-neutral-500">
-                {new Date(item.timestamp).toLocaleString("en-US", {
+                {new Date(item.timestamp).toLocaleString("fr-FR", {
                   month: "short",
                   day: "numeric",
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
               </span>
+              <div className="w-px h-3 bg-neutral-300" />
+              <span className="text-xs text-neutral-500 flex items-center gap-1">
+                <Type size={10} />
+                {wordCount} mot{wordCount !== 1 ? 's' : ''}
+              </span>
+              {wpm !== null && (
+                <>
+                  <div className="w-px h-3 bg-neutral-300" />
+                  <span className="text-xs text-emerald-600 flex items-center gap-1">
+                    <Clock size={10} />
+                    {wpm} mots/min
+                  </span>
+                </>
+              )}
             </div>
             <p
               className="text-neutral-800 text-sm"

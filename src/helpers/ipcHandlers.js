@@ -123,8 +123,8 @@ class IPCHandlers {
     });
 
     // Database handlers
-    ipcMain.handle("db-save-transcription", async (event, text) => {
-      return this.databaseManager.saveTranscription(text);
+    ipcMain.handle("db-save-transcription", async (event, text, durationSeconds = null) => {
+      return this.databaseManager.saveTranscription(text, durationSeconds);
     });
 
     ipcMain.handle("db-get-transcriptions", async (event, limit = 50) => {
@@ -137,6 +137,10 @@ class IPCHandlers {
 
     ipcMain.handle("db-delete-transcription", async (event, id) => {
       return this.databaseManager.deleteTranscription(id);
+    });
+
+    ipcMain.handle("db-get-statistics", async (event) => {
+      return this.databaseManager.getStatistics();
     });
 
     // Clipboard handlers

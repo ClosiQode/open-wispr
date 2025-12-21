@@ -80,6 +80,8 @@ export default function App() {
   const [isHovered, setIsHovered] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const recordingStartTimeRef = useRef(null);
+  const recordingDurationRef = useRef(null);
   const { toast } = useToast();
   const { hotkey } = useHotkey();
   const { isDragging, handleMouseDown, handleMouseUp, handleClick } =
@@ -100,6 +102,12 @@ export default function App() {
       };
 
       mediaRecorderRef.current.onstop = async () => {
+        // Calculate recording duration
+        if (recordingStartTimeRef.current) {
+          const durationMs = Date.now() - recordingStartTimeRef.current;
+          recordingDurationRef.current = durationMs / 1000; // Convert to seconds
+        }
+
         setIsProcessing(true);
         const audioBlob = new Blob(audioChunksRef.current, {
           type: "audio/wav",
@@ -110,6 +118,7 @@ export default function App() {
       };
 
       mediaRecorderRef.current.start();
+      recordingStartTimeRef.current = Date.now();
       setIsRecording(true);
     } catch (err) {
       console.error("Recording error:", err);
@@ -170,9 +179,10 @@ export default function App() {
             // Paste immediately - don't wait for database save
             const pastePromise = safePaste(result.text);
 
-            // Save to database in parallel
+            // Save to database in parallel with recording duration
+            const durationSeconds = recordingDurationRef.current;
             const savePromise = window.electronAPI
-              .saveTranscription(result.text)
+              .saveTranscription(result.text, durationSeconds)
               .catch((err) => {
                 console.error("Failed to save transcription:", err);
               });
