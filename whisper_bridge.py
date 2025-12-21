@@ -408,7 +408,7 @@ def delete_model(model_name="base"):
             "success": False
         }
 
-def transcribe_audio(audio_path, model_name="base", language=None):
+def transcribe_audio(audio_path, model_name="base", language=None, initial_prompt=None):
     """Transcribe audio file using Whisper with optimizations"""
 
     if not os.path.exists(audio_path):
@@ -430,6 +430,11 @@ def transcribe_audio(audio_path, model_name="base", language=None):
         }
         if language:
             options["language"] = language
+
+        # Add initial_prompt for vocabulary/context hints
+        # This helps Whisper recognize custom words, names, technical terms
+        if initial_prompt:
+            options["initial_prompt"] = initial_prompt
 
         result = model.transcribe(audio_path, **options)
 
@@ -526,7 +531,8 @@ def main():
                        choices=["tiny", "base", "small", "medium", "large", "turbo"],
                        help="Whisper model to use (default: base)")
     parser.add_argument("--language", help="Language code (optional)")
-    parser.add_argument("--output-format", default="json", 
+    parser.add_argument("--initial-prompt", help="Initial prompt for vocabulary hints (optional)")
+    parser.add_argument("--output-format", default="json",
                        choices=["json", "text"],
                        help="Output format (default: json)")
     
@@ -570,7 +576,7 @@ def main():
             sys.exit(1)
         
         # Transcribe
-        result = transcribe_audio(args.audio_file, args.model, args.language)
+        result = transcribe_audio(args.audio_file, args.model, args.language, args.initial_prompt)
         
         # Output results
         if args.output_format == "json":

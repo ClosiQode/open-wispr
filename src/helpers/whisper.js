@@ -61,12 +61,14 @@ class WhisperManager {
     const tempAudioPath = await this.createTempAudioFile(audioBlob);
     const model = options.model || "base";
     const language = options.language || null;
+    const initialPrompt = options.initialPrompt || null;
 
     try {
       const result = await this.runWhisperProcess(
         tempAudioPath,
         model,
-        language
+        language,
+        initialPrompt
       );
       return this.parseWhisperResult(result);
     } catch (error) {
@@ -120,18 +122,21 @@ class WhisperManager {
     return tempAudioPath;
   }
 
-  async runWhisperProcess(tempAudioPath, model, language) {
+  async runWhisperProcess(tempAudioPath, model, language, initialPrompt = null) {
     const pythonCmd = await this.findPythonExecutable();
     const whisperScriptPath = this.getWhisperScriptPath();
-    
+
     // Check if whisper script exists
     if (!fs.existsSync(whisperScriptPath)) {
       throw new Error(`Whisper script not found at: ${whisperScriptPath}`);
     }
-    
+
     const args = [whisperScriptPath, tempAudioPath, "--model", model];
     if (language) {
       args.push("--language", language);
+    }
+    if (initialPrompt) {
+      args.push("--initial-prompt", initialPrompt);
     }
     args.push("--output-format", "json");
 

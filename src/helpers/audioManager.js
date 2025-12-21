@@ -1,6 +1,6 @@
 import TextCleanup from "../utils/textCleanup";
 import ReasoningService from "../services/ReasoningService";
-import { applyDictionaryReplacements } from "../hooks/useDictionary";
+import { applyDictionaryReplacements, getVocabularyPrompt } from "../hooks/useDictionary";
 
 
 class AudioManager {
@@ -184,6 +184,12 @@ class AudioManager {
       const options = { model };
       if (language && language !== "auto") {
         options.language = language;
+      }
+
+      // Get vocabulary prompt to help Whisper recognize custom words
+      const vocabularyPrompt = getVocabularyPrompt();
+      if (vocabularyPrompt) {
+        options.initialPrompt = vocabularyPrompt;
       }
 
       const result = await window.electronAPI.transcribeLocalWhisper(

@@ -241,7 +241,7 @@ export default function ControlPanel() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <BarChart3 size={18} className="text-indigo-600" />
-                  Statistiques
+                  Statistiques globales
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -281,17 +281,17 @@ export default function ControlPanel() {
                     <div className="text-2xl font-bold text-neutral-900">
                       {statistics.averageWpm > 0 ? statistics.averageWpm : "—"}
                     </div>
-                    {statistics.transcriptionsWithDuration > 0 && (
+                    {statistics.transcriptionsWithDuration > 0 && statistics.averageWpm > 0 && (
                       <div className="text-xs text-neutral-500 mt-1">
-                        Basé sur {statistics.transcriptionsWithDuration} transcription{statistics.transcriptionsWithDuration > 1 ? 's' : ''}
+                        {statistics.wordsWithDuration.toLocaleString()} mots en {Math.floor(statistics.totalDurationSeconds / 60)}:{String(Math.round(statistics.totalDurationSeconds % 60)).padStart(2, '0')}
                       </div>
                     )}
                   </div>
                 </div>
-                {statistics.totalDurationSeconds > 0 && (
+                {statistics.totalTranscriptions > 50 && (
                   <div className="mt-3 pt-3 border-t border-neutral-100">
                     <div className="text-xs text-neutral-500 text-center">
-                      Temps total dicté : {Math.floor(statistics.totalDurationSeconds / 60)} min {Math.round(statistics.totalDurationSeconds % 60)} sec
+                      Statistiques calculées sur toutes les {statistics.totalTranscriptions} transcriptions (seules les 50 dernières sont affichées ci-dessous)
                     </div>
                   </div>
                 )}

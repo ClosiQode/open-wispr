@@ -9,6 +9,7 @@ export interface TranscriptionItem {
 export interface TranscriptionStatistics {
   totalTranscriptions: number;
   totalWords: number;
+  wordsWithDuration: number;
   daysUsed: number;
   totalDurationSeconds: number;
   averageWpm: number;

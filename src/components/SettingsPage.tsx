@@ -11,7 +11,7 @@ import { useAgentName } from "../utils/agentName";
 import { useWhisper } from "../hooks/useWhisper";
 import { usePermissions } from "../hooks/usePermissions";
 import { useClipboard } from "../hooks/useClipboard";
-import { useDictionary, DictionaryEntry } from "../hooks/useDictionary";
+import { useDictionary, useVocabulary, DictionaryEntry, VocabularyWord } from "../hooks/useDictionary";
 import { useAIModels } from "../hooks/useAIModels";
 import { REASONING_PROVIDERS, TRANSCRIPTION_PROVIDERS, TranscriptionProviderId } from "../utils/languages";
 import LanguageSelector from "./ui/LanguageSelector";
@@ -106,12 +106,16 @@ export default function SettingsPage({
   const { pasteFromClipboardWithFallback } = useClipboard(showAlertDialog);
   const { agentName, setAgentName } = useAgentName();
   const dictionaryHook = useDictionary();
+  const vocabularyHook = useVocabulary();
   const { openaiModels, anthropicModels } = useAIModels();
 
   // États pour le dictionnaire
   const [newDictFrom, setNewDictFrom] = useState("");
   const [newDictTo, setNewDictTo] = useState("");
   const [dictSearchQuery, setDictSearchQuery] = useState("");
+
+  // État pour le vocabulaire
+  const [newVocabWord, setNewVocabWord] = useState("");
   const [editingEntry, setEditingEntry] = useState<DictionaryEntry | null>(null);
 
   // États pour le nouveau clavier amélioré
@@ -1303,14 +1307,170 @@ export default function SettingsPage({
       case "dictionary":
         return (
           <div className="space-y-6">
+            {/* Section Vocabulaire */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Dictionnaire personnalisé
+                Vocabulaire personnalisé
               </h3>
               <p className="text-sm text-gray-600 mb-6">
-                Ajoutez des remplacements automatiques pour corriger les mots souvent mal transcrits.
-                Les remplacements sont appliqués après chaque transcription.
+                Ajoutez des mots spécifiques (noms propres, termes techniques, etc.) pour aider
+                Whisper à mieux les reconnaître lors de la transcription.
               </p>
+            </div>
+
+            {/* Formulaire d'ajout de vocabulaire */}
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-4">
+              <h4 className="font-medium text-purple-900">Ajouter un mot</h4>
+              <div className="flex gap-3">
+                <Input
+                  placeholder="Ex: ChatGPT, Anthropic, OpenWispr..."
+                  value={newVocabWord}
+                  onChange={(e) => setNewVocabWord(e.target.value)}
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newVocabWord.trim()) {
+                      const result = vocabularyHook.addWord(newVocabWord);
+                      if (result) {
+                        setNewVocabWord("");
+                        showAlertDialog({
+                          title: "Mot ajouté",
+                          description: `"${result.word}" sera mieux reconnu lors des transcriptions.`,
+                        });
+                      } else {
+                        showAlertDialog({
+                          title: "Erreur",
+                          description: "Ce mot existe déjà dans le vocabulaire.",
+                        });
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => {
+                    const result = vocabularyHook.addWord(newVocabWord);
+                    if (result) {
+                      setNewVocabWord("");
+                      showAlertDialog({
+                        title: "Mot ajouté",
+                        description: `"${result.word}" sera mieux reconnu lors des transcriptions.`,
+                      });
+                    } else {
+                      showAlertDialog({
+                        title: "Erreur",
+                        description: "Ce mot existe déjà ou est invalide.",
+                      });
+                    }
+                  }}
+                  disabled={!newVocabWord.trim()}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter
+                </Button>
+              </div>
+            </div>
+
+            {/* Liste du vocabulaire */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-900">
+                  Mots ({vocabularyHook.words.length})
+                </h4>
+                {vocabularyHook.words.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      showConfirmDialog({
+                        title: "Supprimer tout le vocabulaire",
+                        description: "Êtes-vous sûr de vouloir supprimer tous les mots du vocabulaire ? Cette action est irréversible.",
+                        onConfirm: () => {
+                          vocabularyHook.clearAll();
+                          showAlertDialog({
+                            title: "Vocabulaire vidé",
+                            description: "Tous les mots ont été supprimés.",
+                          });
+                        },
+                        variant: "destructive",
+                      });
+                    }}
+                    className="text-red-600 border-red-300 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+
+              {vocabularyHook.words.length === 0 ? (
+                <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg">
+                  <span className="text-3xl mb-2 block">📝</span>
+                  <p>Aucun mot dans le vocabulaire</p>
+                  <p className="text-sm">Ajoutez des mots ci-dessus pour améliorer la reconnaissance</p>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {vocabularyHook.words.map((word) => (
+                    <div
+                      key={word.id}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${
+                        word.enabled
+                          ? "bg-purple-50 border-purple-200 text-purple-800"
+                          : "bg-gray-50 border-gray-200 text-gray-400"
+                      }`}
+                    >
+                      <button
+                        onClick={() => vocabularyHook.toggleWord(word.id)}
+                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          word.enabled
+                            ? "border-purple-500 bg-purple-500"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        {word.enabled && (
+                          <span className="text-white text-xs">✓</span>
+                        )}
+                      </button>
+                      <span className={`font-medium ${!word.enabled && "line-through"}`}>
+                        {word.word}
+                      </span>
+                      <button
+                        onClick={() => {
+                          showConfirmDialog({
+                            title: "Supprimer le mot",
+                            description: `Voulez-vous supprimer "${word.word}" du vocabulaire ?`,
+                            onConfirm: () => vocabularyHook.deleteWord(word.id),
+                            variant: "destructive",
+                          });
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {vocabularyHook.words.length > 0 && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>💡 Info :</strong> Ces mots sont envoyés à Whisper comme contexte initial
+                  pour améliorer la reconnaissance. Ils fonctionnent mieux avec le mode Local Whisper.
+                </p>
+              </div>
+            )}
+
+            {/* Section Dictionnaire de remplacement */}
+            <div className="border-t pt-6 mt-2">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Dictionnaire de remplacement
+                </h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Ajoutez des remplacements automatiques pour corriger les mots souvent mal transcrits.
+                  Les remplacements sont appliqués après chaque transcription.
+                </p>
+              </div>
             </div>
 
             {/* Formulaire d'ajout */}
@@ -1567,6 +1727,7 @@ export default function SettingsPage({
                 </Button>
               </div>
             )}
+
           </div>
         );
 

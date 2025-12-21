@@ -8,12 +8,25 @@ export interface DictionaryEntry {
   createdAt: number;
 }
 
+export interface VocabularyWord {
+  id: string;
+  word: string;
+  enabled: boolean;
+  createdAt: number;
+}
+
 export interface DictionaryStats {
   totalEntries: number;
   enabledEntries: number;
 }
 
+export interface VocabularyStats {
+  totalWords: number;
+  enabledWords: number;
+}
+
 const STORAGE_KEY = "customDictionary";
+const VOCABULARY_KEY = "customVocabulary";
 
 // Generate unique ID
 const generateId = (): string => {
@@ -40,6 +53,41 @@ const saveDictionary = (entries: DictionaryEntry[]): void => {
   } catch (error) {
     console.error("Failed to save dictionary:", error);
   }
+};
+
+// Load vocabulary from localStorage
+const loadVocabulary = (): VocabularyWord[] => {
+  try {
+    const stored = localStorage.getItem(VOCABULARY_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error("Failed to load vocabulary:", error);
+  }
+  return [];
+};
+
+// Save vocabulary to localStorage
+const saveVocabulary = (words: VocabularyWord[]): void => {
+  try {
+    localStorage.setItem(VOCABULARY_KEY, JSON.stringify(words));
+  } catch (error) {
+    console.error("Failed to save vocabulary:", error);
+  }
+};
+
+/**
+ * Get vocabulary words as an initial prompt for Whisper
+ * Returns a comma-separated string of vocabulary words
+ */
+export const getVocabularyPrompt = (): string | null => {
+  const words = loadVocabulary().filter((w) => w.enabled);
+  if (words.length === 0) return null;
+
+  // Create a natural-sounding prompt with the vocabulary words
+  // This helps Whisper recognize these words during transcription
+  return words.map((w) => w.word).join(", ");
 };
 
 /**
@@ -250,5 +298,111 @@ export function useDictionary() {
     exportEntries,
     getStats,
     searchEntries,
+  };
+}
+
+/**
+ * Hook for managing custom vocabulary words
+ * These words are used as initial_prompt for Whisper to improve recognition
+ */
+export function useVocabulary() {
+  const [words, setWords] = useState<VocabularyWord[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load on mount
+  useEffect(() => {
+    setWords(loadVocabulary());
+    setIsLoaded(true);
+  }, []);
+
+  // Save whenever words change (after initial load)
+  useEffect(() => {
+    if (isLoaded) {
+      saveVocabulary(words);
+    }
+  }, [words, isLoaded]);
+
+  // Add new word
+  const addWord = useCallback((word: string): VocabularyWord | null => {
+    const trimmedWord = word.trim();
+
+    if (!trimmedWord) {
+      return null;
+    }
+
+    // Check for duplicate (case-insensitive)
+    const isDuplicate = words.some(
+      (w) => w.word.toLowerCase() === trimmedWord.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return null;
+    }
+
+    const newWord: VocabularyWord = {
+      id: generateId(),
+      word: trimmedWord,
+      enabled: true,
+      createdAt: Date.now(),
+    };
+
+    setWords((prev) => [...prev, newWord]);
+    return newWord;
+  }, [words]);
+
+  // Delete word
+  const deleteWord = useCallback((id: string): boolean => {
+    let found = false;
+    setWords((prev) => {
+      const newWords = prev.filter((word) => {
+        if (word.id === id) {
+          found = true;
+          return false;
+        }
+        return true;
+      });
+      return newWords;
+    });
+    return found;
+  }, []);
+
+  // Toggle word enabled state
+  const toggleWord = useCallback((id: string): void => {
+    setWords((prev) =>
+      prev.map((word) =>
+        word.id === id ? { ...word, enabled: !word.enabled } : word
+      )
+    );
+  }, []);
+
+  // Clear all words
+  const clearAll = useCallback((): void => {
+    setWords([]);
+  }, []);
+
+  // Get stats
+  const getStats = useCallback((): VocabularyStats => {
+    return {
+      totalWords: words.length,
+      enabledWords: words.filter((w) => w.enabled).length,
+    };
+  }, [words]);
+
+  // Get vocabulary prompt string
+  const getPrompt = useCallback((): string | null => {
+    const enabledWords = words.filter((w) => w.enabled);
+    if (enabledWords.length === 0) return null;
+    return enabledWords.map((w) => w.word).join(", ");
+  }, [words]);
+
+  return {
+    words,
+    isLoaded,
+    addWord,
+    deleteWord,
+    toggleWord,
+    clearAll,
+    getStats,
+    getPrompt,
   };
 }

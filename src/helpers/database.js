@@ -130,6 +130,7 @@ class DatabaseManager {
       let totalWords = 0;
       let totalDurationSeconds = 0;
       let transcriptionsWithDuration = 0;
+      let wordsWithDuration = 0; // Only count words from transcriptions that have duration
 
       for (const t of transcriptions) {
         // Count words (split by whitespace, filter empty strings)
@@ -139,6 +140,7 @@ class DatabaseManager {
         if (t.duration_seconds != null && t.duration_seconds > 0) {
           totalDurationSeconds += t.duration_seconds;
           transcriptionsWithDuration++;
+          wordsWithDuration += words.length; // Only add words from transcriptions with duration
         }
       }
 
@@ -149,11 +151,11 @@ class DatabaseManager {
       `);
       const { days_used } = daysStmt.get();
 
-      // Calculate average words per minute
+      // Calculate average words per minute (only using transcriptions with duration data)
       let averageWpm = 0;
-      if (totalDurationSeconds > 0) {
+      if (totalDurationSeconds > 0 && wordsWithDuration > 0) {
         const totalMinutes = totalDurationSeconds / 60;
-        averageWpm = Math.round(totalWords / totalMinutes);
+        averageWpm = Math.round(wordsWithDuration / totalMinutes);
       }
 
       // Get first and last transcription dates
@@ -168,6 +170,7 @@ class DatabaseManager {
       return {
         totalTranscriptions: total,
         totalWords,
+        wordsWithDuration,
         daysUsed: days_used,
         totalDurationSeconds,
         averageWpm,
@@ -180,6 +183,7 @@ class DatabaseManager {
       return {
         totalTranscriptions: 0,
         totalWords: 0,
+        wordsWithDuration: 0,
         daysUsed: 0,
         totalDurationSeconds: 0,
         averageWpm: 0,
