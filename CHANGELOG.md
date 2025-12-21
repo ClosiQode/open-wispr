@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21] - 2025-12-21
+
+### Added
+- **CUDA/GPU Acceleration**: Automatic GPU detection and acceleration for faster transcription
+  - Auto-detects NVIDIA CUDA-compatible GPUs
+  - Enables fp16 (half-precision) for 2-3x speedup when GPU available
+  - Falls back to CPU gracefully if GPU fails
+  - New `check-gpu` mode in whisper_bridge.py to verify GPU status
+  - Returns device info (cuda/cpu) and fp16 status in transcription results
+
+### Technical Details
+- `whisper_bridge.py` now imports torch for GPU detection
+- Model loading uses detected device (CUDA or CPU)
+- GPU memory is properly cleared when switching models
+
 ## [1.0.20] - 2025-12-21
 
 ### Fixed

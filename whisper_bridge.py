@@ -15,6 +15,17 @@ import threading
 import time
 import requests
 import gc
+import torch
+
+def get_device():
+    """Detect best available device (CUDA GPU or CPU)"""
+    if torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+def is_cuda_available():
+    """Check if CUDA is available for GPU acceleration"""
+    return torch.cuda.is_available()
 
 def get_ffmpeg_path():
     """Get path to bundled FFmpeg executable with proper production support"""
@@ -116,24 +127,38 @@ if ffmpeg_path:
 _model_cache = {}
 
 def load_model(model_name="base"):
-    """Load Whisper model with caching for performance"""
+    """Load Whisper model with caching for performance, using GPU if available"""
     global _model_cache
-    
+
+    device = get_device()
+    cache_key = f"{model_name}_{device}"
+
     # Return cached model if available
-    if model_name in _model_cache:
-        return _model_cache[model_name]
-    
+    if cache_key in _model_cache:
+        return _model_cache[cache_key]
+
     try:
-        model = whisper.load_model(model_name)
-        
+        # Load model on detected device (CUDA if available, else CPU)
+        model = whisper.load_model(model_name, device=device)
+
         if len(_model_cache) >= 2:
             oldest_key = next(iter(_model_cache))
             del _model_cache[oldest_key]
             gc.collect()
-        
-        _model_cache[model_name] = model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        _model_cache[cache_key] = model
         return model
     except Exception as e:
+        # Fallback to CPU if GPU fails
+        if device == "cuda":
+            try:
+                model = whisper.load_model(model_name, device="cpu")
+                _model_cache[f"{model_name}_cpu"] = model
+                return model
+            except Exception:
+                pass
         return None
 
 def get_expected_model_size(model_name):
@@ -385,36 +410,66 @@ def delete_model(model_name="base"):
 
 def transcribe_audio(audio_path, model_name="base", language=None):
     """Transcribe audio file using Whisper with optimizations"""
-    
+
     if not os.path.exists(audio_path):
         return {"error": f"Audio file not found: {audio_path}", "success": False}
-    
+
     try:
         # Load model (uses cache for performance)
         model = load_model(model_name)
         if model is None:
             return {"error": "Failed to load Whisper model", "success": False}
-        
+
+        # Enable fp16 (half-precision) for CUDA for 2-3x speedup
+        # fp16 only works on CUDA, not on CPU
+        use_fp16 = is_cuda_available()
+
         options = {
-            "fp16": False,
+            "fp16": use_fp16,
             "verbose": False,
         }
         if language:
             options["language"] = language
-            
+
         result = model.transcribe(audio_path, **options)
-        
+
         text = result.get("text", "").strip()
-        language = result.get("language", "unknown")
-        
+        detected_language = result.get("language", "unknown")
+
         return {
             "text": text,
-            "language": language,
+            "language": detected_language,
+            "device": get_device(),
+            "fp16": use_fp16,
             "success": True
         }
-        
+
     except Exception as e:
         return {
+            "error": str(e),
+            "success": False
+        }
+
+def check_gpu():
+    """Check GPU/CUDA availability and info"""
+    try:
+        cuda_available = torch.cuda.is_available()
+        result = {
+            "cuda_available": cuda_available,
+            "device": get_device(),
+            "success": True
+        }
+
+        if cuda_available:
+            result["gpu_name"] = torch.cuda.get_device_name(0)
+            result["gpu_memory_total"] = round(torch.cuda.get_device_properties(0).total_memory / (1024**3), 2)
+            result["cuda_version"] = torch.version.cuda
+
+        return result
+    except Exception as e:
+        return {
+            "cuda_available": False,
+            "device": "cpu",
             "error": str(e),
             "success": False
         }
@@ -463,8 +518,8 @@ def check_ffmpeg():
 
 def main():
     parser = argparse.ArgumentParser(description="Whisper Bridge for OpenWispr")
-    parser.add_argument("--mode", default="transcribe", 
-                       choices=["transcribe", "download", "check", "list", "delete", "check-ffmpeg"],
+    parser.add_argument("--mode", default="transcribe",
+                       choices=["transcribe", "download", "check", "list", "delete", "check-ffmpeg", "check-gpu"],
                        help="Operation mode (default: transcribe)")
     parser.add_argument("audio_file", nargs="?", help="Path to audio file to transcribe")
     parser.add_argument("--model", default="base", 
@@ -496,6 +551,10 @@ def main():
         return
     elif args.mode == "check-ffmpeg":
         result = check_ffmpeg()
+        print(json.dumps(result))
+        return
+    elif args.mode == "check-gpu":
+        result = check_gpu()
         print(json.dumps(result))
         return
     elif args.mode == "transcribe":
