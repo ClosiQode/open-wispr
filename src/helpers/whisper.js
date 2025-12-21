@@ -467,7 +467,7 @@ class WhisperManager {
     for (const pythonPath of possiblePaths) {
       try {
         debugLogger.log(`Testing Python path: ${pythonPath}`);
-        
+
         // First check if file exists for absolute paths
         if (path.isAbsolute(pythonPath)) {
           if (!fs.existsSync(pythonPath)) {
@@ -476,14 +476,30 @@ class WhisperManager {
           }
           debugLogger.log(`Path exists: ${pythonPath}`);
         }
-        
+
         const version = await this.getPythonVersion(pythonPath);
         debugLogger.log(`Python version for ${pythonPath}:`, version);
-        
+
         if (this.isPythonVersionSupported(version)) {
-          debugLogger.log(`✅ Found valid Python: ${pythonPath}`);
-          this.pythonCmd = pythonPath; // Cache the result
-          return pythonPath;
+          // For relative paths (like python.exe), resolve to absolute path using 'where' on Windows
+          let resolvedPath = pythonPath;
+          if (!path.isAbsolute(pythonPath) && process.platform === 'win32') {
+            try {
+              const { execSync } = require('child_process');
+              const whereResult = execSync(`where ${pythonPath}`, { encoding: 'utf-8', timeout: 5000 });
+              const firstLine = whereResult.split('\n')[0].trim();
+              if (firstLine && fs.existsSync(firstLine)) {
+                resolvedPath = firstLine;
+                debugLogger.log(`Resolved ${pythonPath} to absolute path: ${resolvedPath}`);
+              }
+            } catch (whereError) {
+              debugLogger.log(`Could not resolve absolute path for ${pythonPath}, using as-is`);
+            }
+          }
+
+          debugLogger.log(`✅ Found valid Python: ${resolvedPath}`);
+          this.pythonCmd = resolvedPath; // Cache the result
+          return resolvedPath;
         } else {
           debugLogger.log(`❌ Unsupported Python version: ${pythonPath}`, version);
         }
