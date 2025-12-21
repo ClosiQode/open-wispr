@@ -437,6 +437,12 @@ class AudioManager {
         formData.append("language", language);
       }
 
+      // Add vocabulary prompt if available
+      const vocabularyPrompt = getVocabularyPrompt();
+      if (vocabularyPrompt) {
+        formData.append("prompt", vocabularyPrompt);
+      }
+
       const response = await fetch(
         "https://api.openai.com/v1/audio/transcriptions",
         {
@@ -551,6 +557,12 @@ class AudioManager {
         formData.append("language", language);
       }
       formData.append("response_format", "json");
+
+      // Add vocabulary prompt if available
+      const vocabularyPrompt = getVocabularyPrompt();
+      if (vocabularyPrompt) {
+        formData.append("prompt", vocabularyPrompt);
+      }
 
       const response = await fetch(
         "https://api.groq.com/openai/v1/audio/transcriptions",
