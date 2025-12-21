@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.22] - 2025-12-21
+
+### Added
+- **GPU Status UI**: Visual GPU/CUDA status display in Local Whisper settings
+  - Shows real-time GPU detection status
+  - Displays GPU name and CUDA version when available
+  - One-click CUDA installation for NVIDIA users
+  - Automatic numpy compatibility fix after CUDA install
+
+### UI States
+- ✅ **GPU activé** (green) - CUDA is working, transcription will use GPU
+- ⚡ **GPU disponible** (orange) - NVIDIA detected, click to enable CUDA
+- 💻 **Mode CPU** (gray) - No NVIDIA GPU, using CPU
+
+### Technical Details
+- New IPC handlers: `check-gpu-status`, `check-nvidia-gpu`, `install-cuda-torch`
+- WhisperManager methods for GPU detection and CUDA installation
+- Automatic numpy<2.0 downgrade for numba compatibility
+
 ## [1.0.21] - 2025-12-21
 
 ### Added

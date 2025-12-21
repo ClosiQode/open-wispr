@@ -1153,6 +1153,190 @@ class WhisperManager {
       throw error;
     }
   }
+
+  async checkGpuStatus() {
+    try {
+      const pythonCmd = await this.findPythonExecutable();
+      const whisperScriptPath = this.getWhisperScriptPath();
+
+      const args = [whisperScriptPath, "--mode", "check-gpu"];
+
+      return new Promise((resolve, reject) => {
+        const pythonParts = pythonCmd.split(' ');
+        const pythonExec = pythonParts[0];
+        const pythonExtraArgs = pythonParts.slice(1);
+        const checkProcess = spawn(pythonExec, [...pythonExtraArgs, ...args]);
+
+        let stdout = "";
+        let stderr = "";
+
+        checkProcess.stdout.on("data", (data) => {
+          stdout += data.toString();
+        });
+
+        checkProcess.stderr.on("data", (data) => {
+          stderr += data.toString();
+        });
+
+        checkProcess.on("close", (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(stdout);
+              resolve(result);
+            } catch (parseError) {
+              resolve({
+                cuda_available: false,
+                device: "cpu",
+                error: "Failed to parse GPU status",
+                success: false
+              });
+            }
+          } else {
+            resolve({
+              cuda_available: false,
+              device: "cpu",
+              error: stderr || "GPU check failed",
+              success: false
+            });
+          }
+        });
+
+        checkProcess.on("error", (error) => {
+          resolve({
+            cuda_available: false,
+            device: "cpu",
+            error: error.message,
+            success: false
+          });
+        });
+      });
+    } catch (error) {
+      return {
+        cuda_available: false,
+        device: "cpu",
+        error: error.message,
+        success: false
+      };
+    }
+  }
+
+  async checkNvidiaGpu() {
+    // Check if NVIDIA GPU is present using nvidia-smi
+    return new Promise((resolve) => {
+      const command = process.platform === "win32" ? "nvidia-smi" : "nvidia-smi";
+      const checkProcess = spawn(command, ["--query-gpu=name", "--format=csv,noheader"], {
+        windowsHide: true
+      });
+
+      let stdout = "";
+
+      checkProcess.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+
+      checkProcess.on("close", (code) => {
+        if (code === 0 && stdout.trim()) {
+          resolve({
+            hasNvidia: true,
+            gpuName: stdout.trim().split('\n')[0]
+          });
+        } else {
+          resolve({ hasNvidia: false, gpuName: null });
+        }
+      });
+
+      checkProcess.on("error", () => {
+        resolve({ hasNvidia: false, gpuName: null });
+      });
+    });
+  }
+
+  async installCudaTorch(progressCallback = null) {
+    try {
+      const pythonCmd = await this.findPythonExecutable();
+      const parts = pythonCmd.split(' ');
+      const exec = parts[0];
+      const extra = parts.slice(1);
+
+      return new Promise((resolve, reject) => {
+        const installProcess = spawn(exec, [
+          ...extra,
+          "-m", "pip", "install",
+          "torch", "torchvision", "torchaudio",
+          "--index-url", "https://download.pytorch.org/whl/cu121",
+          "--force-reinstall"
+        ], {
+          windowsHide: true
+        });
+
+        let stderr = "";
+
+        installProcess.stdout.on("data", (data) => {
+          const output = data.toString();
+          if (progressCallback) {
+            // Parse download progress if available
+            if (output.includes("Downloading")) {
+              progressCallback({ type: "downloading", message: output.trim() });
+            } else if (output.includes("Installing")) {
+              progressCallback({ type: "installing", message: output.trim() });
+            }
+          }
+        });
+
+        installProcess.stderr.on("data", (data) => {
+          stderr += data.toString();
+        });
+
+        installProcess.on("close", (code) => {
+          if (code === 0) {
+            // After installing torch with CUDA, we need to downgrade numpy for numba compatibility
+            this.fixNumpyCompatibility(pythonCmd).then(() => {
+              resolve({ success: true, message: "PyTorch CUDA installed successfully" });
+            }).catch((numpyError) => {
+              // Still resolve as success, numpy fix is optional
+              resolve({ success: true, message: "PyTorch CUDA installed (numpy warning: " + numpyError.message + ")" });
+            });
+          } else {
+            reject(new Error(`Installation failed: ${stderr}`));
+          }
+        });
+
+        installProcess.on("error", (error) => {
+          reject(new Error(`Installation process error: ${error.message}`));
+        });
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async fixNumpyCompatibility(pythonCmd) {
+    // Numba requires numpy < 2.0, but torch CUDA might install numpy 2.x
+    const parts = pythonCmd.split(' ');
+    const exec = parts[0];
+    const extra = parts.slice(1);
+
+    return new Promise((resolve, reject) => {
+      const fixProcess = spawn(exec, [
+        ...extra,
+        "-m", "pip", "install", "numpy<2.0"
+      ], {
+        windowsHide: true
+      });
+
+      fixProcess.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error("Failed to fix numpy version"));
+        }
+      });
+
+      fixProcess.on("error", (error) => {
+        reject(error);
+      });
+    });
+  }
 }
 
 module.exports = WhisperManager;

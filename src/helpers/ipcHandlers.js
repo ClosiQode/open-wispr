@@ -293,6 +293,26 @@ class IPCHandlers {
       return this.whisperManager.checkFFmpegAvailability();
     });
 
+    // GPU/CUDA handlers
+    ipcMain.handle("check-gpu-status", async (event) => {
+      return this.whisperManager.checkGpuStatus();
+    });
+
+    ipcMain.handle("check-nvidia-gpu", async (event) => {
+      return this.whisperManager.checkNvidiaGpu();
+    });
+
+    ipcMain.handle("install-cuda-torch", async (event) => {
+      try {
+        const result = await this.whisperManager.installCudaTorch((progress) => {
+          event.sender.send("cuda-install-progress", progress);
+        });
+        return result;
+      } catch (error) {
+        throw error;
+      }
+    });
+
     // Utility handlers
     ipcMain.handle("cleanup-app", async (event) => {
       try {

@@ -56,6 +56,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   checkFFmpegAvailability: () =>
     ipcRenderer.invoke("check-ffmpeg-availability"),
 
+  // GPU/CUDA functions
+  checkGpuStatus: () => ipcRenderer.invoke("check-gpu-status"),
+  checkNvidiaGpu: () => ipcRenderer.invoke("check-nvidia-gpu"),
+  installCudaTorch: () => ipcRenderer.invoke("install-cuda-torch"),
+  onCudaInstallProgress: (callback) =>
+    ipcRenderer.on("cuda-install-progress", callback),
+
   // Window control functions
   windowMinimize: () => ipcRenderer.invoke("window-minimize"),
   windowMaximize: () => ipcRenderer.invoke("window-maximize"),

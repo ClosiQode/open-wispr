@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { RefreshCw, Download, Keyboard, Mic, Shield, Lock, Cloud, Zap, Book, Plus, Trash2, Search } from "lucide-react";
+import { RefreshCw, Download, Keyboard, Mic, Shield, Lock, Cloud, Zap, Book, Plus, Trash2, Search, Cpu, Loader2 } from "lucide-react";
 import WhisperModelPicker from "./WhisperModelPicker";
 import ApiKeyInput from "./ui/ApiKeyInput";
 import { ConfirmDialog, AlertDialog } from "./ui/dialog";
@@ -122,6 +122,23 @@ export default function SettingsPage({
   // État pour le démarrage automatique
   const [autoStartLoading, setAutoStartLoading] = useState(false);
 
+  // États pour GPU/CUDA
+  const [gpuStatus, setGpuStatus] = useState<{
+    checking: boolean;
+    hasNvidia: boolean;
+    gpuName: string | null;
+    cudaAvailable: boolean;
+    cudaVersion: string | null;
+    installing: boolean;
+  }>({
+    checking: false,
+    hasNvidia: false,
+    gpuName: null,
+    cudaAvailable: false,
+    cudaVersion: null,
+    installing: false,
+  });
+
   // Synchroniser selectedKeys avec dictationKey
   useEffect(() => {
     if (dictationKey) {
@@ -154,9 +171,58 @@ export default function SettingsPage({
         console.error("Failed to sync auto-start status:", error);
       }
     };
-    
+
     syncAutoStartStatus();
   }, [setStartOnBoot]);
+
+  // Vérifier le statut GPU quand Local Whisper est sélectionné
+  useEffect(() => {
+    const checkGpuStatus = async () => {
+      if (transcriptionProvider !== "local") return;
+
+      setGpuStatus(prev => ({ ...prev, checking: true }));
+
+      try {
+        // D'abord vérifier si NVIDIA est présent
+        const nvidiaResult = await window.electronAPI?.checkNvidiaGpu();
+
+        if (nvidiaResult?.hasNvidia) {
+          // Ensuite vérifier si CUDA torch est installé
+          const cudaResult = await window.electronAPI?.checkGpuStatus();
+
+          setGpuStatus({
+            checking: false,
+            hasNvidia: true,
+            gpuName: nvidiaResult.gpuName || cudaResult?.gpu_name || null,
+            cudaAvailable: cudaResult?.cuda_available || false,
+            cudaVersion: cudaResult?.cuda_version || null,
+            installing: false,
+          });
+        } else {
+          setGpuStatus({
+            checking: false,
+            hasNvidia: false,
+            gpuName: null,
+            cudaAvailable: false,
+            cudaVersion: null,
+            installing: false,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to check GPU status:", error);
+        setGpuStatus({
+          checking: false,
+          hasNvidia: false,
+          gpuName: null,
+          cudaAvailable: false,
+          cudaVersion: null,
+          installing: false,
+        });
+      }
+    };
+
+    checkGpuStatus();
+  }, [transcriptionProvider]);
 
   // Defer heavy operations for better performance
   useEffect(() => {
@@ -343,6 +409,45 @@ export default function SettingsPage({
       showAlertDialog({
         title: "Erreur",
         description: `Échec de la mise à jour du raccourci : ${error.message}`,
+      });
+    }
+  };
+
+  const handleInstallCuda = async () => {
+    setGpuStatus(prev => ({ ...prev, installing: true }));
+
+    try {
+      showAlertDialog({
+        title: "Installation en cours",
+        description: "Téléchargement de PyTorch avec CUDA (~2.5 Go). Cela peut prendre plusieurs minutes...",
+      });
+
+      const result = await window.electronAPI?.installCudaTorch();
+
+      if (result?.success) {
+        // Revérifier le statut GPU après installation
+        const cudaResult = await window.electronAPI?.checkGpuStatus();
+
+        setGpuStatus(prev => ({
+          ...prev,
+          cudaAvailable: cudaResult?.cuda_available || false,
+          cudaVersion: cudaResult?.cuda_version || null,
+          installing: false,
+        }));
+
+        showAlertDialog({
+          title: "Installation réussie",
+          description: `Accélération GPU activée ! ${cudaResult?.gpu_name ? `GPU: ${cudaResult.gpu_name}` : ""}`,
+        });
+      } else {
+        throw new Error(result?.message || "Installation échouée");
+      }
+    } catch (error: any) {
+      console.error("CUDA installation failed:", error);
+      setGpuStatus(prev => ({ ...prev, installing: false }));
+      showAlertDialog({
+        title: "Erreur d'installation",
+        description: `Impossible d'installer PyTorch CUDA: ${error.message}`,
       });
     }
   };
@@ -1065,6 +1170,81 @@ export default function SettingsPage({
                 <h4 className="font-medium text-purple-900">
                   Modèle Whisper local
                 </h4>
+
+                {/* GPU Status Display */}
+                <div className="p-3 rounded-lg border bg-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Cpu className="w-5 h-5 text-gray-600" />
+                      <span className="font-medium text-gray-800">Accélération matérielle</span>
+                    </div>
+
+                    {gpuStatus.checking ? (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Détection...</span>
+                      </div>
+                    ) : gpuStatus.cudaAvailable ? (
+                      <div className="flex items-center gap-2 text-green-600">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        <span className="text-sm font-medium">GPU activé</span>
+                      </div>
+                    ) : gpuStatus.hasNvidia ? (
+                      <div className="flex items-center gap-2 text-orange-600">
+                        <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                        <span className="text-sm font-medium">GPU disponible</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        <span className="text-sm">Mode CPU</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* GPU Details */}
+                  {gpuStatus.gpuName && (
+                    <p className="text-xs text-gray-500 mt-2 ml-7">
+                      {gpuStatus.gpuName}
+                      {gpuStatus.cudaVersion && ` • CUDA ${gpuStatus.cudaVersion}`}
+                    </p>
+                  )}
+
+                  {/* Enable GPU Button */}
+                  {gpuStatus.hasNvidia && !gpuStatus.cudaAvailable && !gpuStatus.checking && (
+                    <div className="mt-3 ml-7">
+                      <Button
+                        onClick={handleInstallCuda}
+                        disabled={gpuStatus.installing}
+                        size="sm"
+                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                      >
+                        {gpuStatus.installing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Installation en cours...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-4 h-4 mr-2" />
+                            Activer l'accélération GPU
+                          </>
+                        )}
+                      </Button>
+                      <p className="text-xs text-orange-600 mt-1">
+                        Télécharge ~2.5 Go pour activer CUDA
+                      </p>
+                    </div>
+                  )}
+
+                  {/* CPU Mode Info */}
+                  {!gpuStatus.hasNvidia && !gpuStatus.checking && (
+                    <p className="text-xs text-gray-500 mt-2 ml-7">
+                      Aucun GPU NVIDIA détecté. La transcription utilise le CPU.
+                    </p>
+                  )}
+                </div>
+
                 <WhisperModelPicker
                   selectedModel={whisperModel}
                   onModelSelect={setWhisperModel}
