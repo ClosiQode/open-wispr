@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.17] - 2025-12-21
+
+### Fixed
+- **Local Whisper UI**: Fixed local model picker not showing when Python/Whisper status was unknown
+  - Added step-by-step setup flow for Local Whisper configuration
+  - Step 1: Detect Python installation, offer automatic installation if missing
+  - Step 2: Detect Whisper module, offer installation if Python is available
+  - Step 3: Show model picker once everything is installed
+  - Clear status indicators at each step
+
+### Improved
+- **Better UX**: Users can now see exactly what needs to be installed and do it from the settings page
+- **Status feedback**: Loading spinners and progress messages during installation checks
+
 ## [1.0.16] - 2025-12-21
 
 ### Fixed
